@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://b57qqm1eu4yv2"]
 
+[ext_resource type="Script" uid="uid://rxh62njqm8r6" path="res://scripts/board.gd" id="1_0xm2m"]
 [ext_resource type="Shader" uid="uid://bwl67xyep8ik4" path="res://shaders/board.gdshader" id="1_ig7tw"]
+[ext_resource type="PackedScene" uid="uid://bwaocync2o5tu" path="res://clickable_square.tscn" id="3_h2yge"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vuvef"]
 shader = ExtResource("1_ig7tw")
@@ -12,6 +14,7 @@ shader_parameter/black = Color(0.17641911, 0.17641908, 0.17641908, 1)
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1301767173]
 
 [node name="Board" type="Node2D" parent="." unique_id=844830614]
+script = ExtResource("1_0xm2m")
 
 [node name="ColorRect" type="ColorRect" parent="Board" unique_id=1334896018]
 material = SubResource("ShaderMaterial_vuvef")
@@ -26,3 +29,212 @@ offset_right = 200.0
 offset_bottom = 200.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="ButtonGrid" type="GridContainer" parent="Board/ColorRect" unique_id=126512716]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -200.0
+offset_right = 200.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/h_separation = 0
+theme_override_constants/v_separation = 0
+columns = 8
+
+[node name="ClickableSquare" parent="Board/ColorRect/ButtonGrid" unique_id=1941684718 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare2" parent="Board/ColorRect/ButtonGrid" unique_id=1748165432 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare3" parent="Board/ColorRect/ButtonGrid" unique_id=1230711811 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare4" parent="Board/ColorRect/ButtonGrid" unique_id=1964679926 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare5" parent="Board/ColorRect/ButtonGrid" unique_id=569034403 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare6" parent="Board/ColorRect/ButtonGrid" unique_id=1869745017 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare7" parent="Board/ColorRect/ButtonGrid" unique_id=196003519 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare8" parent="Board/ColorRect/ButtonGrid" unique_id=379110427 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare9" parent="Board/ColorRect/ButtonGrid" unique_id=1462575441 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare10" parent="Board/ColorRect/ButtonGrid" unique_id=1774456659 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare11" parent="Board/ColorRect/ButtonGrid" unique_id=1235138238 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare12" parent="Board/ColorRect/ButtonGrid" unique_id=158943216 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare13" parent="Board/ColorRect/ButtonGrid" unique_id=1213401853 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare14" parent="Board/ColorRect/ButtonGrid" unique_id=581606769 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare15" parent="Board/ColorRect/ButtonGrid" unique_id=560415622 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare16" parent="Board/ColorRect/ButtonGrid" unique_id=1383841076 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare17" parent="Board/ColorRect/ButtonGrid" unique_id=80995261 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare18" parent="Board/ColorRect/ButtonGrid" unique_id=1416273710 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare19" parent="Board/ColorRect/ButtonGrid" unique_id=1778232861 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare20" parent="Board/ColorRect/ButtonGrid" unique_id=755719392 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare21" parent="Board/ColorRect/ButtonGrid" unique_id=130702846 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare22" parent="Board/ColorRect/ButtonGrid" unique_id=1348528291 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare23" parent="Board/ColorRect/ButtonGrid" unique_id=1563093726 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare24" parent="Board/ColorRect/ButtonGrid" unique_id=1639699607 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare25" parent="Board/ColorRect/ButtonGrid" unique_id=2015768872 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare26" parent="Board/ColorRect/ButtonGrid" unique_id=242953898 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare27" parent="Board/ColorRect/ButtonGrid" unique_id=1495852811 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare28" parent="Board/ColorRect/ButtonGrid" unique_id=179458102 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare29" parent="Board/ColorRect/ButtonGrid" unique_id=122901585 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare30" parent="Board/ColorRect/ButtonGrid" unique_id=597846350 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare31" parent="Board/ColorRect/ButtonGrid" unique_id=178005713 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare32" parent="Board/ColorRect/ButtonGrid" unique_id=970848496 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare33" parent="Board/ColorRect/ButtonGrid" unique_id=1157820862 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare34" parent="Board/ColorRect/ButtonGrid" unique_id=1928695707 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare35" parent="Board/ColorRect/ButtonGrid" unique_id=1884008665 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare36" parent="Board/ColorRect/ButtonGrid" unique_id=2022283521 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare37" parent="Board/ColorRect/ButtonGrid" unique_id=389869183 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare38" parent="Board/ColorRect/ButtonGrid" unique_id=589595973 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare39" parent="Board/ColorRect/ButtonGrid" unique_id=538940217 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare40" parent="Board/ColorRect/ButtonGrid" unique_id=1578309044 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare41" parent="Board/ColorRect/ButtonGrid" unique_id=1568856258 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare42" parent="Board/ColorRect/ButtonGrid" unique_id=1213249252 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare43" parent="Board/ColorRect/ButtonGrid" unique_id=1908300512 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare44" parent="Board/ColorRect/ButtonGrid" unique_id=1107273230 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare45" parent="Board/ColorRect/ButtonGrid" unique_id=1998757247 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare46" parent="Board/ColorRect/ButtonGrid" unique_id=1465942742 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare47" parent="Board/ColorRect/ButtonGrid" unique_id=94903357 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare48" parent="Board/ColorRect/ButtonGrid" unique_id=1580209034 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare49" parent="Board/ColorRect/ButtonGrid" unique_id=478014991 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare50" parent="Board/ColorRect/ButtonGrid" unique_id=233883638 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare51" parent="Board/ColorRect/ButtonGrid" unique_id=517343007 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare52" parent="Board/ColorRect/ButtonGrid" unique_id=1981645672 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare53" parent="Board/ColorRect/ButtonGrid" unique_id=1494439661 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare54" parent="Board/ColorRect/ButtonGrid" unique_id=1467387532 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare55" parent="Board/ColorRect/ButtonGrid" unique_id=31649168 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare56" parent="Board/ColorRect/ButtonGrid" unique_id=376872499 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare57" parent="Board/ColorRect/ButtonGrid" unique_id=1502253933 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare58" parent="Board/ColorRect/ButtonGrid" unique_id=2051143871 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare59" parent="Board/ColorRect/ButtonGrid" unique_id=999167722 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare60" parent="Board/ColorRect/ButtonGrid" unique_id=1455766400 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare61" parent="Board/ColorRect/ButtonGrid" unique_id=959328750 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare62" parent="Board/ColorRect/ButtonGrid" unique_id=902207528 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare63" parent="Board/ColorRect/ButtonGrid" unique_id=1900657425 instance=ExtResource("3_h2yge")]
+layout_mode = 2
+
+[node name="ClickableSquare64" parent="Board/ColorRect/ButtonGrid" unique_id=24908175 instance=ExtResource("3_h2yge")]
+layout_mode = 2

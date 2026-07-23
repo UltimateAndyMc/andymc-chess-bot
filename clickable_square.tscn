@@ -1,6 +1,24 @@
 [gd_scene format=3 uid="uid://bwaocync2o5tu"]
 
-[node name="TextureButton" type="TextureButton" unique_id=338248595]
+[ext_resource type="Script" uid="uid://clcfrdwmdn4cq" path="res://clickable_square.gd" id="1_3wwa7"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_1u0m2"]
+
+[sub_resource type="Gradient" id="Gradient_1u0m2"]
+interpolation_mode = 2
+offsets = PackedFloat32Array(0.14935064, 0.58441556)
+colors = PackedColorArray(0.54497427, 0.5449743, 0.5449741, 1, 0.54509807, 0.54509807, 0.54509807, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_1u0m2"]
+gradient = SubResource("Gradient_1u0m2")
+width = 50
+height = 50
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.4678899, 0)
+
+[node name="ClickableSquare" type="Button" unique_id=1941684718]
+self_modulate = Color(1, 1, 1, 0)
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -12,3 +30,14 @@ offset_right = 25.0
 offset_bottom = 25.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_styles/normal = SubResource("StyleBoxEmpty_1u0m2")
+icon = SubResource("GradientTexture2D_1u0m2")
+script = ExtResource("1_3wwa7")
+
+[node name="Piece" type="Sprite2D" parent="." unique_id=1015346682]
+position = Vector2(25, 25)
+scale = Vector2(0.391, 0.391)
+
+[connection signal="pressed" from="." to="." method="_on_pressed"]
