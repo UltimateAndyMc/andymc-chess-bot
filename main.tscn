@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://b57qqm1eu4yv2"]
+
+[ext_resource type="Shader" uid="uid://bwl67xyep8ik4" path="res://shaders/board.gdshader" id="1_ig7tw"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vuvef"]
+shader = ExtResource("1_ig7tw")
+shader_parameter/white = Color(1, 1, 1, 1)
+shader_parameter/black = Color(0.17641911, 0.17641908, 0.17641908, 1)
+
+[node name="Main" type="Node2D" unique_id=1936774836]
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1301767173]
+
+[node name="Board" type="Node2D" parent="." unique_id=844830614]
+
+[node name="ColorRect" type="ColorRect" parent="Board" unique_id=1334896018]
+material = SubResource("ShaderMaterial_vuvef")
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -200.0
+offset_right = 200.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
