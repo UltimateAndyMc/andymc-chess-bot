@@ -58,9 +58,32 @@ func update_allowed_moves(legal_moves: Array):
 			legal_move_index += 1
 			button_grid.get_child(i).set_visibility(true)
 
+# Careful when using this, empty squares are considered black
+func get_piece_color(piece: int):
+	return WHITE if piece <= WP else BLACK
+
+func find_king_position(color: bool, test_position: Array):
+	var king_piece = WK if color == WHITE else BK
+	for i in range(64):
+		if test_position[i] == king_piece:
+			return i
+
+func is_in_check(color: bool, test_turn: bool, test_position: Array):
+	var king_piece = WK if color == WHITE else BK
+	var king_square = find_king_position(color, test_position)
+	
+	for i: int in range(64):
+		var piece = test_position[i]
+		if piece == E:
+			continue
+		if get_piece_color(piece) == !color && is_legal_move(test_position, !test_turn, i, king_square, true):
+			return true
+	return false
+	
+
 # other_data is a weird thing I have to add because gdscript has no out variables!
 # damn you Godot, I'll change this to c++ for performance later anyway... probably.
-func is_legal_move(start_square, end_square, other_data: Dictionary = {}):
+func is_legal_move(test_position: Array, test_turn: bool, start_square, end_square, ignore_check: bool = false, other_data: Dictionary = {}):
 	if start_square == end_square:
 		return false
 		
@@ -74,19 +97,20 @@ func is_legal_move(start_square, end_square, other_data: Dictionary = {}):
 	var file_changed = file_change != 0
 	var rank_changed = rank_change != 0
 	
-	var start_piece = board_position[start_square]
-	var end_piece = board_position[end_square]
+	var start_piece = test_position[start_square]
+	var end_piece = test_position[end_square]
 	if end_piece <= WP: # Piece being taken is white
-		if turn == WHITE:
+		if test_turn == WHITE:
 			return false
 	elif end_piece != E: # Piece being taken is black
-		if turn == BLACK:
+		if test_turn == BLACK:
 			return false
 	
 	# King movement restriction
 	if start_piece == WK || start_piece == BK: 
 		if abs(file_change) > 1 || abs(rank_change) > 1:
 			return false
+	
 	
 	# How did queen move?
 	var queen_rook_move: bool = false
@@ -106,7 +130,7 @@ func is_legal_move(start_square, end_square, other_data: Dictionary = {}):
 		# Scan
 		var scan_square = start_square + sign(file_change) - (8 * sign(rank_change))
 		while scan_square != end_square:
-			if (board_position[scan_square] != E):
+			if (test_position[scan_square] != E):
 				return false
 			scan_square += sign(file_change) - (8 * sign(rank_change))
 	
@@ -117,7 +141,7 @@ func is_legal_move(start_square, end_square, other_data: Dictionary = {}):
 		# Scan
 		var scan_square = start_square + sign(file_change) - (8 * sign(rank_change))
 		while scan_square != end_square:
-			if (board_position[scan_square] != E):
+			if (test_position[scan_square] != E):
 				return false
 			scan_square += sign(file_change) - (8 * sign(rank_change))
 	
@@ -139,25 +163,33 @@ func is_legal_move(start_square, end_square, other_data: Dictionary = {}):
 		var previous_rank_start = 8 - (previous_move_start / 8)
 		var previous_rank_end = 8 - (previous_move_end / 8)
 		var previous_rank_change = previous_rank_end - previous_rank_start
-		if (board_position[previous_move_end] == WP || board_position[previous_move_end] == BP) && abs(previous_rank_change) == 2:
+		if (test_position[previous_move_end] == WP || test_position[previous_move_end] == BP) && abs(previous_rank_change) == 2:
 			en_passantable_square = previous_move_start - (previous_direction * 8)
 		
 		# Logic for if staying in the same file
 		if !file_changed:
 			if ((direction * rank_change < 0 || abs(rank_change) > allowed_rank_change) || 
-			board_position[end_square] != E || board_position[start_square - (direction * 8)] != E):
+			test_position[end_square] != E || test_position[start_square - (direction * 8)] != E):
 				return false
 		elif (rank_change * direction != 1 || abs(file_change) != 1 || (end_piece == E && end_square != en_passantable_square)):
 			return false
 		elif end_square == en_passantable_square:
 			other_data["deleted_square"] = start_square + sign(file_change)
 	
+	# Check prevention
+	if !ignore_check:
+		var new_test_position: Array = test_position.duplicate()
+		new_test_position[end_square] = start_piece
+		new_test_position[start_square] = E
+		if is_in_check(test_turn, test_turn, new_test_position):
+			return false
+	
 	return true
 
 func generate_legal_moves(square: int):
 	var legal_moves = []
 	for i in range(64):
-		if is_legal_move(square, i):
+		if is_legal_move(board_position, turn, square, i):
 			legal_moves.append(i)
 	print(legal_moves)
 	return legal_moves
@@ -174,7 +206,7 @@ func _on_square_pressed(number: int):
 		# Move Piece
 		update_allowed_moves([])
 		var other_data: Dictionary = {}
-		if !is_legal_move(selected_square, number, other_data):
+		if !is_legal_move(board_position, turn, selected_square, number, false, other_data):
 			selected_square = -1
 			return
 		board_position[number] = board_position[selected_square]
