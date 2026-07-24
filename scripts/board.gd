@@ -58,7 +58,9 @@ func update_allowed_moves(legal_moves: Array):
 			legal_move_index += 1
 			button_grid.get_child(i).set_visibility(true)
 
-func is_legal_move(start_square, end_square):
+# other_data is a weird thing I have to add because gdscript has no out variables!
+# damn you Godot, I'll change this to c++ for performance later anyway... probably.
+func is_legal_move(start_square, end_square, other_data: Dictionary = {}):
 	if start_square == end_square:
 		return false
 		
@@ -128,17 +130,27 @@ func is_legal_move(start_square, end_square):
 	if start_piece == WP || start_piece == BP:
 		var allowed_rank_change = 1
 		var direction = 1 if start_piece == WP else -1
+		var previous_direction = -direction
 		
 		if (start_piece == WP && start_rank == 2) || (start_piece == BP && start_rank == 7):
 			allowed_rank_change = 2
+			
+		var en_passantable_square = -1
+		var previous_rank_start = 8 - (previous_move_start / 8)
+		var previous_rank_end = 8 - (previous_move_end / 8)
+		var previous_rank_change = previous_rank_end - previous_rank_start
+		if (board_position[previous_move_end] == WP || board_position[previous_move_end] == BP) && abs(previous_rank_change) == 2:
+			en_passantable_square = previous_move_start - (previous_direction * 8)
 		
 		# Logic for if staying in the same file
 		if !file_changed:
 			if ((direction * rank_change < 0 || abs(rank_change) > allowed_rank_change) || 
 			board_position[end_square] != E || board_position[start_square - (direction * 8)] != E):
 				return false
-		elif (rank_change * direction != 1 || abs(file_change) != 1 || end_piece == E):
+		elif (rank_change * direction != 1 || abs(file_change) != 1 || (end_piece == E && end_square != en_passantable_square)):
 			return false
+		elif end_square == en_passantable_square:
+			other_data["deleted_square"] = start_square + sign(file_change)
 	
 	return true
 
@@ -161,11 +173,15 @@ func _on_square_pressed(number: int):
 	else:
 		# Move Piece
 		update_allowed_moves([])
-		if !is_legal_move(selected_square, number):
+		var other_data: Dictionary = {}
+		if !is_legal_move(selected_square, number, other_data):
 			selected_square = -1
 			return
 		board_position[number] = board_position[selected_square]
 		board_position[selected_square] = E
+		if other_data.has("deleted_square"):
+			board_position[other_data["deleted_square"]] = E
+		
 		previous_move_start = selected_square
 		previous_move_end = number
 		
