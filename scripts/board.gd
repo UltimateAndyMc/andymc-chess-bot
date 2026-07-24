@@ -24,6 +24,7 @@ var piece_textures: Array = [
 	ImageTexture.create_from_image(Image.create(1, 1, false, Image.FORMAT_RGBA8))  # E - empty square, no texture
 ]
 
+# Data about current position and history:
 var board_position = [
 	BR, BN, BB, BQ, BK, BB, BN, BR,
 	BP, BP, BP, BP, BP, BP, BP, BP,
@@ -34,6 +35,9 @@ var board_position = [
 	WP, WP, WP, WP, WP, WP, WP, WP,
 	WR, WN, WB, WQ, WK, WB, WN, WR
 ]
+var previous_move_start = -1
+var previous_move_end = -1
+
 var selected_square: int = -1
 var turn: bool = WHITE
 
@@ -43,6 +47,16 @@ func set_piece(number: int, piece):
 func update_board():
 	for i in range(64):
 		set_piece(i, board_position[i])
+
+# Legal moves should be sorted in ascending order
+func update_allowed_moves(legal_moves: Array):
+	var legal_move_index: int = 0
+	for i in range(64):
+		if (legal_move_index >= len(legal_moves) || legal_moves[legal_move_index] != i):
+			button_grid.get_child(i).set_visibility(false)
+		else:
+			legal_move_index += 1
+			button_grid.get_child(i).set_visibility(true)
 
 func is_legal_move(start_square, end_square):
 	if start_square == end_square:
@@ -61,11 +75,9 @@ func is_legal_move(start_square, end_square):
 	var start_piece = board_position[start_square]
 	var end_piece = board_position[end_square]
 	if end_piece <= WP: # Piece being taken is white
-		print("Piece being taken is white")
 		if turn == WHITE:
 			return false
 	elif end_piece != E: # Piece being taken is black
-		print("Piece being taken is black")
 		if turn == BLACK:
 			return false
 	
@@ -106,9 +118,37 @@ func is_legal_move(start_square, end_square):
 			if (board_position[scan_square] != E):
 				return false
 			scan_square += sign(file_change) - (8 * sign(rank_change))
-			
+	
+	# Knight movement restriction
+	if start_piece == WN || start_piece == BN:
+		if !((abs(rank_change) == 2 && abs(file_change) == 1) || (abs(rank_change) == 1 && abs(file_change) == 2)):
+			return false
+	
+	# Pawn movement restriction
+	if start_piece == WP || start_piece == BP:
+		var allowed_rank_change = 1
+		var direction = 1 if start_piece == WP else -1
+		
+		if (start_piece == WP && start_rank == 2) || (start_piece == BP && start_rank == 7):
+			allowed_rank_change = 2
+		
+		# Logic for if staying in the same file
+		if !file_changed:
+			if ((direction * rank_change < 0 || abs(rank_change) > allowed_rank_change) || 
+			board_position[end_square] != E || board_position[start_square - (direction * 8)] != E):
+				return false
+		elif (rank_change * direction != 1 || abs(file_change) != 1 || end_piece == E):
+			return false
 	
 	return true
+
+func generate_legal_moves(square: int):
+	var legal_moves = []
+	for i in range(64):
+		if is_legal_move(square, i):
+			legal_moves.append(i)
+	print(legal_moves)
+	return legal_moves
 
 func _on_square_pressed(number: int):
 	print("Square Pressed: %d" % number)
@@ -116,13 +156,19 @@ func _on_square_pressed(number: int):
 	if selected_square == -1:
 		if board_position[number] != E && ((turn == WHITE && board_position[number] <= WP) || (turn == BLACK && board_position[number] >= BK)):
 			selected_square = number
+			var legal_moves = generate_legal_moves(number)
+			update_allowed_moves(legal_moves)
 	else:
 		# Move Piece
+		update_allowed_moves([])
 		if !is_legal_move(selected_square, number):
 			selected_square = -1
 			return
 		board_position[number] = board_position[selected_square]
 		board_position[selected_square] = E
+		previous_move_start = selected_square
+		previous_move_end = number
+		
 		selected_square = -1
 		update_board()
 		turn = !turn

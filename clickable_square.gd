@@ -4,9 +4,9 @@ signal square_pressed(child: int)
 
 func set_visibility(visibility):
 	if visibility:
-		visibility.self_modulate.a = 1
+		self_modulate.a = 1
 	else:
-		visibility.self_modulate.a = 0
+		self_modulate.a = 0
 
 
 func _on_pressed() -> void:
