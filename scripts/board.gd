@@ -38,8 +38,14 @@ var board_position = [
 var previous_move_start = -1
 var previous_move_end = -1
 
+var moved_pieces: Array[bool] = []
+
 var selected_square: int = -1
 var turn: bool = WHITE
+
+var playing_mode: bool = true
+func _on_playing_mode_toggled(toggled_on: bool) -> void:
+	playing_mode = toggled_on
 
 func set_piece(number: int, piece):
 	button_grid.get_child(number).get_node("Piece").texture = piece_textures[piece]
@@ -68,22 +74,21 @@ func find_king_position(color: bool, test_position: Array):
 		if test_position[i] == king_piece:
 			return i
 
-func is_in_check(color: bool, test_turn: bool, test_position: Array):
-	var king_piece = WK if color == WHITE else BK
+func is_in_check(color: bool, test_moved_pieces: Array[bool], test_position: Array):
 	var king_square = find_king_position(color, test_position)
 	
 	for i: int in range(64):
 		var piece = test_position[i]
 		if piece == E:
 			continue
-		if get_piece_color(piece) == !color && is_legal_move(test_position, !test_turn, i, king_square, true):
+		if get_piece_color(piece) != color && is_legal_move(test_position, !color, test_moved_pieces, i, king_square, true):
 			return true
 	return false
 	
 
 # other_data is a weird thing I have to add because gdscript has no out variables!
 # damn you Godot, I'll change this to c++ for performance later anyway... probably.
-func is_legal_move(test_position: Array, test_turn: bool, start_square, end_square, ignore_check: bool = false, other_data: Dictionary = {}):
+func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Array[bool], start_square, end_square, ignore_check: bool = false, other_data: Dictionary = {}):
 	if start_square == end_square:
 		return false
 		
@@ -107,8 +112,36 @@ func is_legal_move(test_position: Array, test_turn: bool, start_square, end_squa
 			return false
 	
 	# King movement restriction
-	if start_piece == WK || start_piece == BK: 
-		if abs(file_change) > 1 || abs(rank_change) > 1:
+	if start_piece == WK || start_piece == BK:
+		var castling_attempt: bool = rank_change == 0 && abs(file_change) == 2
+		
+		if  castling_attempt:
+			if is_in_check(test_turn, test_moved_pieces, test_position): return false
+			var king_moved: bool = (start_piece == WK && test_moved_pieces[0]) || (start_piece == BK && test_moved_pieces[1])
+			if king_moved: return false
+			
+			match [start_piece, file_change]:
+				[WK, -2]:
+					if (!moved_pieces[4]):
+						other_data["rook_start"] = 56
+						other_data["rook_end"] = 59
+					else: return false
+				[WK, 2]:
+					if (!moved_pieces[5]):
+						other_data["rook_start"] = 63
+						other_data["rook_end"] = 61
+					else: return false
+				[BK, -2]:
+					if (!moved_pieces[2]):
+						other_data["rook_start"] = 0
+						other_data["rook_end"] = 3
+					else: return false
+				[BK, 2]:
+					if (!moved_pieces[3]):
+						other_data["rook_start"] = 7
+						other_data["rook_end"] = 5
+					else: return false
+		elif abs(file_change) > 1 || abs(rank_change) > 1:
 			return false
 	
 	
@@ -160,8 +193,8 @@ func is_legal_move(test_position: Array, test_turn: bool, start_square, end_squa
 			allowed_rank_change = 2
 			
 		var en_passantable_square = -1
-		var previous_rank_start = 8 - (previous_move_start / 8)
-		var previous_rank_end = 8 - (previous_move_end / 8)
+		var previous_rank_start: int = 8 - (previous_move_start / 8)
+		var previous_rank_end: int = 8 - (previous_move_end / 8)
 		var previous_rank_change = previous_rank_end - previous_rank_start
 		if (test_position[previous_move_end] == WP || test_position[previous_move_end] == BP) && abs(previous_rank_change) == 2:
 			en_passantable_square = previous_move_start - (previous_direction * 8)
@@ -181,7 +214,7 @@ func is_legal_move(test_position: Array, test_turn: bool, start_square, end_squa
 		var new_test_position: Array = test_position.duplicate()
 		new_test_position[end_square] = start_piece
 		new_test_position[start_square] = E
-		if is_in_check(test_turn, test_turn, new_test_position):
+		if is_in_check(test_turn, test_moved_pieces, new_test_position):
 			return false
 	
 	return true
@@ -189,39 +222,67 @@ func is_legal_move(test_position: Array, test_turn: bool, start_square, end_squa
 func generate_legal_moves(square: int):
 	var legal_moves = []
 	for i in range(64):
-		if is_legal_move(board_position, turn, square, i):
+		if is_legal_move(board_position, turn, moved_pieces, square, i):
 			legal_moves.append(i)
 	print(legal_moves)
 	return legal_moves
 
-func _on_square_pressed(number: int):
-	print("Square Pressed: %d" % number)
+func _on_square_pressed(square: int):
+	print("Square Pressed: %d" % square)
 	print("Previously Selected Square: %d" % selected_square)
 	if selected_square == -1:
-		if board_position[number] != E && ((turn == WHITE && board_position[number] <= WP) || (turn == BLACK && board_position[number] >= BK)):
-			selected_square = number
-			var legal_moves = generate_legal_moves(number)
+		if board_position[square] != E && (!playing_mode || ((turn == WHITE && board_position[square] <= WP) || (turn == BLACK && board_position[square] >= BK))):
+			selected_square = square
+			var legal_moves = generate_legal_moves(square)
 			update_allowed_moves(legal_moves)
 	else:
+		if (selected_square == square):
+			selected_square = -1
+			update_allowed_moves([])
+			return
 		# Move Piece
 		update_allowed_moves([])
 		var other_data: Dictionary = {}
-		if !is_legal_move(board_position, turn, selected_square, number, false, other_data):
+		if playing_mode && !is_legal_move(board_position, turn, moved_pieces, selected_square, square, false, other_data):
 			selected_square = -1
 			return
-		board_position[number] = board_position[selected_square]
+		board_position[square] = board_position[selected_square]
 		board_position[selected_square] = E
 		if other_data.has("deleted_square"):
 			board_position[other_data["deleted_square"]] = E
 		
+		if other_data.has("rook_start"):
+			board_position[other_data["rook_end"]] = board_position[other_data["rook_start"]]
+			board_position[other_data["rook_start"]] = E
+		
+		# Update moved_pieces
+		match (selected_square):
+			0:
+				moved_pieces[2] = true
+			4:
+				moved_pieces[1] = true
+			7:
+				moved_pieces[3] = true
+			56:
+				moved_pieces[4] = true
+			60:
+				moved_pieces[0] = true
+			63:
+				moved_pieces[5] = true
+		
 		previous_move_start = selected_square
-		previous_move_end = number
+		previous_move_end = square
 		
 		selected_square = -1
 		update_board()
 		turn = !turn
 
 func _ready():
+	# Moved pieces for castling
+	# Pieces in order: White King, Black King, a8 Rook, h8 Rook, a1 Rook, h1 Rook
+	moved_pieces.resize(6)
+	moved_pieces.fill(false)
+	
 	for square in button_grid.get_children():
 		square.square_pressed.connect(_on_square_pressed)
 	update_board()
