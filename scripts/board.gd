@@ -122,25 +122,46 @@ func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Arr
 			
 			match [start_piece, file_change]:
 				[WK, -2]:
-					if (!moved_pieces[4]):
+					if (moved_pieces[4] || test_position[57] != E || test_position[58] != E || test_position[59] != E): return false
+					else:
+						var mid_castle_square = 59
+						var mid_castle_position = test_position.duplicate()
+						mid_castle_position[mid_castle_square] = WK
+						mid_castle_position[start_square] = E
+						if is_in_check(test_turn, test_moved_pieces, mid_castle_position): return false
+						
 						other_data["rook_start"] = 56
 						other_data["rook_end"] = 59
-					else: return false
 				[WK, 2]:
-					if (!moved_pieces[5]):
+					if (moved_pieces[5] || test_position[61] != E || test_position[62] != E): return false
+					else:
+						var mid_castle_square = 61
+						var mid_castle_position = test_position.duplicate()
+						mid_castle_position[mid_castle_square] = WK
+						mid_castle_position[start_square] = E
+						if is_in_check(test_turn, test_moved_pieces, mid_castle_position): return false
 						other_data["rook_start"] = 63
 						other_data["rook_end"] = 61
-					else: return false
 				[BK, -2]:
-					if (!moved_pieces[2]):
+					if (moved_pieces[2] || test_position[1] != E || test_position[2] != E || test_position[3] != E): return false
+					else:
+						var mid_castle_square = 3
+						var mid_castle_position = test_position.duplicate()
+						mid_castle_position[mid_castle_square] = BK
+						mid_castle_position[start_square] = E
+						if is_in_check(test_turn, test_moved_pieces, mid_castle_position): return false
 						other_data["rook_start"] = 0
 						other_data["rook_end"] = 3
-					else: return false
 				[BK, 2]:
-					if (!moved_pieces[3]):
+					if (moved_pieces[3] || test_position[5] != E || test_position[6] != E): return false
+					else:
+						var mid_castle_square = 5
+						var mid_castle_position = test_position.duplicate()
+						mid_castle_position[mid_castle_square] = BK
+						mid_castle_position[start_square] = E
+						if is_in_check(test_turn, test_moved_pieces, mid_castle_position): return false
 						other_data["rook_start"] = 7
 						other_data["rook_end"] = 5
-					else: return false
 		elif abs(file_change) > 1 || abs(rank_change) > 1:
 			return false
 	
@@ -256,19 +277,20 @@ func _on_square_pressed(square: int):
 			board_position[other_data["rook_start"]] = E
 		
 		# Update moved_pieces
-		match (selected_square):
-			0:
-				moved_pieces[2] = true
-			4:
-				moved_pieces[1] = true
-			7:
-				moved_pieces[3] = true
-			56:
-				moved_pieces[4] = true
-			60:
-				moved_pieces[0] = true
-			63:
-				moved_pieces[5] = true
+		for moving_square in [selected_square, square]:
+			match (moving_square):
+				0:
+					moved_pieces[2] = true
+				4:
+					moved_pieces[1] = true
+				7:
+					moved_pieces[3] = true
+				56:
+					moved_pieces[4] = true
+				60:
+					moved_pieces[0] = true
+				63:
+					moved_pieces[5] = true
 		
 		previous_move_start = selected_square
 		previous_move_end = square
