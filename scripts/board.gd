@@ -1,6 +1,7 @@
 extends Node2D
 
 @onready var button_grid: GridContainer = $ColorRect/ButtonGrid
+@onready var bot = $Bot
 
 enum {WK, WQ, WR, WB, WN, WP, BK, BQ, BR, BB, BN, BP, E}
 
@@ -253,27 +254,13 @@ func generate_legal_moves(square: int):
 	print(legal_moves)
 	return legal_moves
 
-func _on_square_pressed(square: int):
-	print("Square Pressed: %d" % square)
-	print("Previously Selected Square: %d" % selected_square)
-	if selected_square == -1:
-		if board_position[square] != E && (!playing_mode || ((turn == WHITE && board_position[square] <= WP) || (turn == BLACK && board_position[square] >= BK))):
-			selected_square = square
-			var legal_moves = generate_legal_moves(square)
-			update_allowed_moves(legal_moves)
-	else:
-		if (selected_square == square):
-			selected_square = -1
-			update_allowed_moves([])
-			return
-		# Move Piece
-		update_allowed_moves([])
+func attempt_make_move(start_square, end_square, bot_turn: bool):
 		var other_data: Dictionary = {}
-		if playing_mode && !is_legal_move(board_position, turn, moved_pieces, selected_square, square, false, other_data):
+		if !bot_turn && playing_mode && !is_legal_move(board_position, turn, moved_pieces, start_square, end_square, false, other_data):
 			selected_square = -1
 			return
-		board_position[square] = board_position[selected_square]
-		board_position[selected_square] = E
+		board_position[end_square] = board_position[start_square]
+		board_position[start_square] = E
 		if other_data.has("deleted_square"):
 			board_position[other_data["deleted_square"]] = E
 		
@@ -282,7 +269,7 @@ func _on_square_pressed(square: int):
 			board_position[other_data["rook_start"]] = E
 		
 		# Update moved_pieces
-		for moving_square in [selected_square, square]:
+		for moving_square in [start_square, end_square]:
 			match (moving_square):
 				0:
 					moved_pieces[2] = true
@@ -296,19 +283,36 @@ func _on_square_pressed(square: int):
 					moved_pieces[0] = true
 				63:
 					moved_pieces[5] = true
-		var end_rank = 7 - (square / 8)
-		if (end_rank == 7 || end_rank == 0) && (board_position[square] == WP || board_position[square] == BP):
-			if board_position[square] == WP:
-				board_position[square] = promote_type
-			elif board_position[square] == BP:
-				board_position[square] = promote_type + BK # Offset to black pieces
+		var end_rank = 7 - (end_square / 8)
+		if (end_rank == 7 || end_rank == 0) && (board_position[end_square] == WP || board_position[end_square] == BP):
+			if board_position[end_square] == WP:
+				board_position[end_square] = promote_type
+			elif board_position[end_square] == BP:
+				board_position[end_square] = promote_type + BK # Offset to black pieces
 		
-		previous_move_start = selected_square
-		previous_move_end = square
-		
-		selected_square = -1
+		previous_move_start = start_square
+		previous_move_end = end_square
+		if (!bot_turn):
+			selected_square = -1
 		update_board()
 		turn = !turn
+		
+		bot.move_played(turn)
+
+func _on_square_pressed(square: int):
+	print("Square Pressed: %d" % square)
+	print("Previously Selected Square: %d" % selected_square)
+	if selected_square == -1:
+		if board_position[square] != E && (!playing_mode || ((turn == WHITE && board_position[square] <= WP) || (turn == BLACK && board_position[square] >= BK))):
+			selected_square = square
+			var legal_moves = generate_legal_moves(square)
+			update_allowed_moves(legal_moves)
+	else:
+		update_allowed_moves([])
+		if (selected_square == square):
+			selected_square = -1
+			return
+		attempt_make_move(selected_square, square, false)
 
 func _ready():
 	# Moved pieces for castling
