@@ -3,6 +3,10 @@
 [ext_resource type="Script" uid="uid://rxh62njqm8r6" path="res://scripts/board.gd" id="1_0xm2m"]
 [ext_resource type="Shader" uid="uid://bwl67xyep8ik4" path="res://shaders/board.gdshader" id="1_ig7tw"]
 [ext_resource type="PackedScene" uid="uid://bwaocync2o5tu" path="res://clickable_square.tscn" id="3_h2yge"]
+[ext_resource type="Texture2D" uid="uid://cltgrwnhyul3m" path="res://textures/white-queen.png" id="4_1bvp3"]
+[ext_resource type="Texture2D" uid="uid://hi7y8lo66tbm" path="res://textures/white-rook.png" id="5_272bh"]
+[ext_resource type="Texture2D" uid="uid://citotiq7xa4pt" path="res://textures/white-bishop.png" id="6_5vw27"]
+[ext_resource type="Texture2D" uid="uid://nveh36roqyb2" path="res://textures/white-knight.png" id="7_kek77"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vuvef"]
 shader = ExtResource("1_ig7tw")
@@ -267,4 +271,40 @@ layout_mode = 2
 button_pressed = true
 text = "Playing Mode"
 
+[node name="Panel2" type="Panel" parent="." unique_id=859721372]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_top = -240.0
+offset_bottom = -240.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="OptionButton" type="OptionButton" parent="Panel2" unique_id=1457339262]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -16.0
+offset_top = -10.0
+offset_right = 16.0
+offset_bottom = 10.0
+grow_horizontal = 2
+grow_vertical = 2
+selected = 0
+item_count = 4
+popup/item_0/icon = ExtResource("4_1bvp3")
+popup/item_0/id = 0
+popup/item_1/icon = ExtResource("5_272bh")
+popup/item_1/id = 1
+popup/item_2/icon = ExtResource("6_5vw27")
+popup/item_2/id = 2
+popup/item_3/icon = ExtResource("7_kek77")
+popup/item_3/id = 3
+
 [connection signal="toggled" from="Panel/HBoxContainer/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
+[connection signal="item_selected" from="Panel2/OptionButton" to="Board" method="_on_promote_type_changed"]

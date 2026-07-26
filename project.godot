@@ -24,6 +24,10 @@ window/stretch/aspect="expand"
 
 project/assembly_name="Chess"
 
+[gui]
+
+theme/custom="uid://uapx6m2f7imt"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

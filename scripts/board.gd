@@ -35,17 +35,22 @@ var board_position = [
 	WP, WP, WP, WP, WP, WP, WP, WP,
 	WR, WN, WB, WQ, WK, WB, WN, WR
 ]
-var previous_move_start = -1
-var previous_move_end = -1
+var previous_move_start: int = -1
+var previous_move_end: int = -1
 
 var moved_pieces: Array[bool] = []
 
 var selected_square: int = -1
 var turn: bool = WHITE
 
+var promote_type: int = WQ
+
 var playing_mode: bool = true
 func _on_playing_mode_toggled(toggled_on: bool) -> void:
 	playing_mode = toggled_on
+
+func _on_promote_type_changed(index: int) -> void:
+	promote_type = 1 + index
 
 func set_piece(number: int, piece):
 	button_grid.get_child(number).get_node("Piece").texture = piece_textures[piece]
@@ -116,13 +121,13 @@ func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Arr
 		var castling_attempt: bool = rank_change == 0 && abs(file_change) == 2
 		
 		if  castling_attempt:
-			if is_in_check(test_turn, test_moved_pieces, test_position): return false
+			if (!ignore_check && is_in_check(test_turn, test_moved_pieces, test_position)): return false
 			var king_moved: bool = (start_piece == WK && test_moved_pieces[0]) || (start_piece == BK && test_moved_pieces[1])
 			if king_moved: return false
 			
 			match [start_piece, file_change]:
 				[WK, -2]:
-					if (moved_pieces[4] || test_position[57] != E || test_position[58] != E || test_position[59] != E): return false
+					if (test_moved_pieces[4] || test_position[57] != E || test_position[58] != E || test_position[59] != E): return false
 					else:
 						var mid_castle_square = 59
 						var mid_castle_position = test_position.duplicate()
@@ -133,7 +138,7 @@ func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Arr
 						other_data["rook_start"] = 56
 						other_data["rook_end"] = 59
 				[WK, 2]:
-					if (moved_pieces[5] || test_position[61] != E || test_position[62] != E): return false
+					if (test_moved_pieces[5] || test_position[61] != E || test_position[62] != E): return false
 					else:
 						var mid_castle_square = 61
 						var mid_castle_position = test_position.duplicate()
@@ -143,7 +148,7 @@ func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Arr
 						other_data["rook_start"] = 63
 						other_data["rook_end"] = 61
 				[BK, -2]:
-					if (moved_pieces[2] || test_position[1] != E || test_position[2] != E || test_position[3] != E): return false
+					if (test_moved_pieces[2] || test_position[1] != E || test_position[2] != E || test_position[3] != E): return false
 					else:
 						var mid_castle_square = 3
 						var mid_castle_position = test_position.duplicate()
@@ -153,7 +158,7 @@ func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Arr
 						other_data["rook_start"] = 0
 						other_data["rook_end"] = 3
 				[BK, 2]:
-					if (moved_pieces[3] || test_position[5] != E || test_position[6] != E): return false
+					if (test_moved_pieces[3] || test_position[5] != E || test_position[6] != E): return false
 					else:
 						var mid_castle_square = 5
 						var mid_castle_position = test_position.duplicate()
@@ -214,8 +219,8 @@ func is_legal_move(test_position: Array, test_turn: bool, test_moved_pieces: Arr
 			allowed_rank_change = 2
 			
 		var en_passantable_square = -1
-		var previous_rank_start: int = 8 - (previous_move_start / 8)
-		var previous_rank_end: int = 8 - (previous_move_end / 8)
+		var previous_rank_start: int = 7 - (previous_move_start / 8)
+		var previous_rank_end: int = 7 - (previous_move_end / 8)
 		var previous_rank_change = previous_rank_end - previous_rank_start
 		if (test_position[previous_move_end] == WP || test_position[previous_move_end] == BP) && abs(previous_rank_change) == 2:
 			en_passantable_square = previous_move_start - (previous_direction * 8)
@@ -291,6 +296,12 @@ func _on_square_pressed(square: int):
 					moved_pieces[0] = true
 				63:
 					moved_pieces[5] = true
+		var end_rank = 7 - (square / 8)
+		if (end_rank == 7 || end_rank == 0) && (board_position[square] == WP || board_position[square] == BP):
+			if board_position[square] == WP:
+				board_position[square] = promote_type
+			elif board_position[square] == BP:
+				board_position[square] = promote_type + BK # Offset to black pieces
 		
 		previous_move_start = selected_square
 		previous_move_end = square
