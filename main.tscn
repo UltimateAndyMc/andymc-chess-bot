@@ -1,8 +1,7 @@
 [gd_scene format=3 uid="uid://b57qqm1eu4yv2"]
 
-[ext_resource type="Script" uid="uid://rxh62njqm8r6" path="res://scripts/board.gd" id="1_0xm2m"]
+[ext_resource type="Script" uid="uid://cul1uewsy15ob" path="res://scripts/BoardView.cs" id="1_272bh"]
 [ext_resource type="Shader" uid="uid://bwl67xyep8ik4" path="res://shaders/board.gdshader" id="1_ig7tw"]
-[ext_resource type="Script" uid="uid://cjlorc2y1tbf2" path="res://scripts/bots/botv1.gd" id="2_5vw27"]
 [ext_resource type="PackedScene" uid="uid://bwaocync2o5tu" path="res://clickable_square.tscn" id="3_h2yge"]
 [ext_resource type="Texture2D" uid="uid://cltgrwnhyul3m" path="res://textures/white-queen.png" id="4_1bvp3"]
 [ext_resource type="Texture2D" uid="uid://hi7y8lo66tbm" path="res://textures/white-rook.png" id="5_272bh"]
@@ -18,11 +17,9 @@ shader_parameter/black = Color(0.17641911, 0.17641908, 0.17641908, 1)
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1301767173]
 
-[node name="Board" type="Node2D" parent="." unique_id=844830614]
-script = ExtResource("1_0xm2m")
-
-[node name="Bot" type="Node" parent="Board" unique_id=1179920436]
-script = ExtResource("2_5vw27")
+[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid")]
+script = ExtResource("1_272bh")
+buttonGrid = NodePath("ColorRect/ButtonGrid")
 
 [node name="ColorRect" type="ColorRect" parent="Board" unique_id=1334896018]
 material = SubResource("ShaderMaterial_vuvef")
@@ -311,4 +308,4 @@ popup/item_3/icon = ExtResource("7_kek77")
 popup/item_3/id = 3
 
 [connection signal="toggled" from="Panel/HBoxContainer/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
-[connection signal="item_selected" from="Panel2/OptionButton" to="Board" method="_on_promote_type_changed"]
+[connection signal="item_selected" from="Panel2/OptionButton" to="Board" method="OnPromoteTypeChanged"]

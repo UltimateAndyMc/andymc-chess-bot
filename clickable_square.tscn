@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bwaocync2o5tu"]
 
-[ext_resource type="Script" uid="uid://clcfrdwmdn4cq" path="res://clickable_square.gd" id="1_3wwa7"]
+[ext_resource type="Script" uid="uid://crhikvvwn4vwl" path="res://scripts/ClickableSquare.cs" id="1_3wwa7"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_1u0m2"]
 
@@ -40,4 +40,4 @@ script = ExtResource("1_3wwa7")
 position = Vector2(25, 25)
 scale = Vector2(0.391, 0.391)
 
-[connection signal="pressed" from="." to="." method="_on_pressed"]
+[connection signal="pressed" from="." to="." method="OnButtonPressed"]
