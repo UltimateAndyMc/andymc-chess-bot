@@ -773,6 +773,12 @@ public partial class Board
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
 
+        UpdateGameState(moves, count);
+        if (CurrentGameState == GameResult.WhiteWins || CurrentGameState == GameResult.BlackWins)
+        {
+            return float.MaxValue;
+        }
+
         for (int i = 0; i < count; i++)
         {
             UndoInfo undo = MakeMove(moves[i]);
