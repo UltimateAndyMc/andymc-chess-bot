@@ -750,7 +750,7 @@ public partial class Board
         for (int i = 0; i < count; i++)
         {
             UndoInfo undo = MakeMove(moves[i]);
-            float eval = -Search(depth - 1);
+            float eval = -Search(depth - 1, float.MinValue, float.MaxValue);
             UndoMove(undo);
 
             if (eval > bestEval)
@@ -762,7 +762,7 @@ public partial class Board
 
         MakeMove(bestMove);
     }
-    private float Search(int depth)
+    private float Search(int depth, float alpha, float beta)
     {
         if (depth == 0)
         {
@@ -776,12 +776,20 @@ public partial class Board
         for (int i = 0; i < count; i++)
         {
             UndoInfo undo = MakeMove(moves[i]);
-            float eval = -Search(depth - 1);
+            float eval = -Search(depth - 1, -beta, -alpha);
             UndoMove(undo);
 
             if (eval > bestEval)
             {
                 bestEval = eval;
+            }
+            if (eval > alpha)
+            {
+                alpha = eval;
+            }
+            if (alpha >= beta)
+            {
+                break;
             }
         }
         return bestEval;

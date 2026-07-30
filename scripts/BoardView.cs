@@ -93,8 +93,8 @@ public partial class BoardView : Node2D
 
     private void PlayBotMove()
     {
-        if (botMode == BotMode.White && board.SideToMove != Color.White &&
-            botMode == BotMode.Black && board.SideToMove != Color.Black &&
+        if (((botMode == BotMode.White && board.SideToMove != Color.White) ||
+            (botMode == BotMode.Black && board.SideToMove != Color.Black)) &&
             botMode != BotMode.Both
         ) return;
 
