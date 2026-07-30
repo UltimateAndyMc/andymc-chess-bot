@@ -761,6 +761,9 @@ public partial class Board
         }
 
         MakeMove(bestMove);
+        count = GenerateMoves(moves);
+        UpdateGameState(moves, count);
+
     }
     private float Search(int depth, float alpha, float beta)
     {
@@ -776,7 +779,7 @@ public partial class Board
         UpdateGameState(moves, count);
         if (CurrentGameState == GameResult.WhiteWins || CurrentGameState == GameResult.BlackWins)
         {
-            return float.MaxValue;
+            return float.MinValue;
         }
 
         for (int i = 0; i < count; i++)

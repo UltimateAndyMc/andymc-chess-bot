@@ -99,6 +99,7 @@ public partial class BoardView : Node2D
         ) return;
 
         board.PlayBestMove(5);
+        gameStateDisplay.Text = board.CurrentGameState.ToString();
         UpdateBoardView();
         UpdateLegalMovesView();
 
