@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using Godot;
 
+enum BotMode {None, White, Black, Both}
 public partial class BoardView : Node2D
 {
     [Export] private GridContainer buttonGrid;
@@ -10,6 +11,7 @@ public partial class BoardView : Node2D
     private Board board = new Board();
     private int selectedSquare = -1;
     private Piece promoteType = Piece.WQ;
+    private BotMode botMode = BotMode.Black;
 
     public override void _Ready()
     {
@@ -84,6 +86,24 @@ public partial class BoardView : Node2D
             }
         }
     }
+    private void OnBotModeChanged(int newBotMode)
+    {
+        botMode = (BotMode)newBotMode;
+    }
+
+    private void PlayBotMove()
+    {
+        if (botMode == BotMode.White && board.SideToMove != Color.White &&
+            botMode == BotMode.Black && board.SideToMove != Color.Black &&
+            botMode != BotMode.Both
+        ) return;
+
+        board.PlayBestMove(5);
+        UpdateBoardView();
+        UpdateLegalMovesView();
+
+
+    }
     private void OnSquarePressed(int childIndex)
     {
         int file = childIndex % 8;
@@ -106,6 +126,8 @@ public partial class BoardView : Node2D
             UpdateBoardView();
             UpdateLegalMovesView();
             selectedSquare = -1;
+
+            PlayBotMove();
         }
     }
     private void OnPromoteTypeChanged(int index)

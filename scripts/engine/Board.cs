@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Numerics;
 
 public enum Piece {WK, WQ, WR, WB, WN, WP, BK, BQ, BR, BB, BN, BP, E}
@@ -725,5 +726,64 @@ public partial class Board
             UndoMove(undo);
         }
         return nodes;
+    }
+
+    readonly float[] points = [0, 9, 5, 3, 3, 1];
+    private float Evaluate()
+    {
+        float eval = 0;
+        for (int i = 0; i < 12; i++)
+        {
+            int direction = i < 6 ? 1 : -1;
+            eval += BitOperations.PopCount(pieceBBs[i]) * points[i % 6] * direction;
+        }
+        return eval;
+    }
+    public void PlayBestMove(int depth)
+    {
+        MoveInfo bestMove = default;
+        float bestEval = float.MinValue;
+
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+
+        for (int i = 0; i < count; i++)
+        {
+            UndoInfo undo = MakeMove(moves[i]);
+            float eval = -Search(depth - 1);
+            UndoMove(undo);
+
+            if (eval > bestEval)
+            {
+                bestEval = eval;
+                bestMove = moves[i];
+            }
+        }
+
+        MakeMove(bestMove);
+    }
+    private float Search(int depth)
+    {
+        if (depth == 0)
+        {
+            return Evaluate();
+        }
+        float bestEval = float.MinValue;
+
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+
+        for (int i = 0; i < count; i++)
+        {
+            UndoInfo undo = MakeMove(moves[i]);
+            float eval = -Search(depth - 1);
+            UndoMove(undo);
+
+            if (eval > bestEval)
+            {
+                bestEval = eval;
+            }
+        }
+        return bestEval;
     }
 }

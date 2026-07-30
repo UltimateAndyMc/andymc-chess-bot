@@ -263,6 +263,19 @@ layout_mode = 2
 text = "Ongoing"
 horizontal_alignment = 1
 
+[node name="OptionButton" type="OptionButton" parent="Panel/Buttons" unique_id=1589721038]
+layout_mode = 2
+selected = 2
+item_count = 4
+popup/item_0/text = "No Bot"
+popup/item_0/id = 0
+popup/item_1/text = "Bot Plays White"
+popup/item_1/id = 1
+popup/item_2/text = "Bot Plays Black"
+popup/item_2/id = 2
+popup/item_3/text = "Bot Plays Both"
+popup/item_3/id = 3
+
 [node name="CheckButton" type="CheckButton" parent="Panel/Buttons" unique_id=1140948064]
 layout_mode = 2
 button_pressed = true
@@ -303,5 +316,6 @@ popup/item_2/id = 2
 popup/item_3/icon = ExtResource("7_kek77")
 popup/item_3/id = 3
 
+[connection signal="item_selected" from="Panel/Buttons/OptionButton" to="Board" method="OnBotModeChanged"]
 [connection signal="toggled" from="Panel/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
 [connection signal="item_selected" from="Panel2/OptionButton" to="Board" method="OnPromoteTypeChanged"]
