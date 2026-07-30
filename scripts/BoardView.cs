@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using Godot;
 
 public partial class BoardView : Node2D
@@ -17,6 +19,13 @@ public partial class BoardView : Node2D
             squareButton.SquarePressed += OnSquarePressed;
         }
         board.SetStartPosition();
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        long nodes = board.Perft(5);
+        stopwatch.Stop();
+        TimeSpan ts = stopwatch.Elapsed;
+        Debug.WriteLine($"Found {nodes} in {ts.TotalMilliseconds}ms");
+
         
         // Load piece textures
         pieceTextures = [

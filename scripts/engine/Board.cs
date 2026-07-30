@@ -34,13 +34,14 @@ public readonly struct MoveInfo(int from, int to, Piece promotion = Piece.E)
     public readonly int From = from, To = to;
     public readonly Piece Promotion = promotion;
 }
-public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int capturedSquare, int previousEnPassantSquare, CastleRights previousCastleRights)
+public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int capturedSquare, int previousEnPassantSquare, CastleRights previousCastleRights, int previousHalfMoveClock)
 {
     public readonly MoveInfo Move = move;
     public readonly Piece CapturedPiece = capturedPiece;
     public readonly int CapturedSquare = capturedSquare;
     public readonly int PreviousEnPassantSquare = previousEnPassantSquare;
     public readonly CastleRights PreviousCastleRights = previousCastleRights;
+    public readonly int PreviousHalfMoveClock = previousHalfMoveClock;
     
 }
 public partial class Board
@@ -53,8 +54,6 @@ public partial class Board
     private CastleRights castleRights = CastleRights.All;
     private int enPassantSquare = -1;
     public Color SideToMove {get; private set;} = Color.White;
-    private MoveInfo[] moves = new MoveInfo[MaxLegalMoves];
-    private int legalMoveCount = 0;
 
     private int moveCount = 1;
     private int halfMoveClock = 0;
@@ -211,8 +210,9 @@ public partial class Board
         // Set up the initial position
         const string startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         LoadFEN(startFen);
-        GenerateMoves();
-        UpdateGameState();
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+        UpdateGameState(moves, count);
     }
     public Piece GetPieceAtSquare(int square)
     {
@@ -220,7 +220,9 @@ public partial class Board
     }
     public bool IsLegalMove(int from, int to)
     {
-        for (int i = 0; i < legalMoveCount; i++)
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+        for (int i = 0; i < count; i++)
         {
             if (moves[i].From == from && moves[i].To == to)
             {
@@ -377,7 +379,7 @@ public partial class Board
         return attacks;
     }
     // Generates pseudo-legal moves for a given piece on a given square
-    public void GeneratePieceMoves(int square, Piece piece)
+    public void GeneratePieceMoves(Span<MoveInfo> moves, ref int count, int square, Piece piece)
     {
         ulong attacks = piece switch
         {
@@ -459,20 +461,20 @@ public partial class Board
             int rank = targetSquare / 8;
             if ((piece == Piece.WP || piece == Piece.BP) && (rank == 0 || rank == 7))
             {
-                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WQ : Piece.BQ);
-                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WR : Piece.BR);
-                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WB : Piece.BB);
-                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WN : Piece.BN);
+                moves[count++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WQ : Piece.BQ);
+                moves[count++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WR : Piece.BR);
+                moves[count++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WB : Piece.BB);
+                moves[count++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WN : Piece.BN);
             }
             else
             {
-                moves[legalMoveCount++] = move;
+                moves[count++] = move;
             }
         }
     }
-    public void GenerateMoves()
+    public int GenerateMoves(Span<MoveInfo> moves)
     {
-        legalMoveCount = 0;
+        int count = 0;
         int pieceOffset = (int)Piece.BK * (int)SideToMove;
         for (int i = 0; i < 6; i++)
         {
@@ -481,21 +483,21 @@ public partial class Board
             {
                 int square = BitOperations.TrailingZeroCount(pieceBB);
                 Piece piece = (Piece)(pieceOffset + i);
-                GeneratePieceMoves(square, piece);
+                GeneratePieceMoves(moves, ref count, square, piece);
                 pieceBB &= pieceBB - 1; // Clear the least significant bit
             }
         } 
+        return count;
     }
 
-    private void UpdateGameState()
+    private void UpdateGameState(Span<MoveInfo> moves, int count)
     {
         if (halfMoveClock >= 150)
         {
             CurrentGameState = GameResult.Draw;
-            legalMoveCount = 0;
             return;
         }
-        if (legalMoveCount != 0)
+        if (count != 0)
         {
             CurrentGameState = GameResult.Ongoing;
             return;
@@ -512,7 +514,7 @@ public partial class Board
     private void UndoMove(UndoInfo undo)
     {
         CurrentGameState = GameResult.Ongoing;
-        halfMoveClock--;
+        halfMoveClock = undo.PreviousHalfMoveClock;
         Color moverColor = (Color)(1 - (int)SideToMove);
         MoveInfo move = undo.Move;
         Piece fromPiece = boardPieces[move.To];
@@ -584,10 +586,11 @@ public partial class Board
         int fileChange = toFile - fromFile;
         int rankChange = toRank - fromRank;
 
-        halfMoveClock++;
-
         int previousEnPassantSquare = enPassantSquare;
         CastleRights previousCastleRights = castleRights;
+        int previousHalfMoveClock = halfMoveClock;
+
+        halfMoveClock++;
 
         Piece movedPiece = boardPieces[move.From];
         // Ensure only pawns can be promoted and only when they reach the last rank
@@ -650,6 +653,12 @@ public partial class Board
             {
                 castleRights &= ~(CastleRights.BlackKingSide | CastleRights.BlackQueenSide);
             }
+
+            // Reset half move clock
+            if (capturedPiece != Piece.E)
+            {
+                halfMoveClock = 0;
+            }
         }
 
         if (move.From == (int)Square.a1 || capturedSquare == (int)Square.a1) castleRights &= ~CastleRights.WhiteQueenSide;
@@ -685,17 +694,36 @@ public partial class Board
 
         SideToMove = SideToMove == Color.White ? Color.Black : Color.White;
 
-        return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights);
+        return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights, previousHalfMoveClock);
     }
     public bool TryMakeMove(MoveInfo move)
     {
-        if (!IsLegalMove(move.From, move.To))
+        if (CurrentGameState != GameResult.Ongoing || !IsLegalMove(move.From, move.To))
         {
             return false;
         }
         UndoInfo undo = MakeMove(move);
-        GenerateMoves();
-        UpdateGameState();
+
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+        UpdateGameState(moves, count);
         return true;
+    }
+
+    public long Perft(int depth)
+    {
+        if (depth == 0) return 1;
+
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+
+        long nodes = 0;
+        for (int i = 0; i < count; i++)
+        {
+            UndoInfo undo = MakeMove(moves[i]);
+            nodes += Perft(depth - 1);
+            UndoMove(undo);
+        }
+        return nodes;
     }
 }
