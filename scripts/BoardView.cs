@@ -3,8 +3,8 @@ using Godot;
 public partial class BoardView : Node2D
 {
     [Export] private GridContainer buttonGrid;
+    [Export] private Label gameStateDisplay;
     private Texture2D[] pieceTextures;
-
     private Board board = new Board();
     private int selectedSquare = -1;
     private Piece promoteType = Piece.WQ;
@@ -44,10 +44,30 @@ public partial class BoardView : Node2D
             int displayIndex = rank * 8 + file;
             ClickableSquare squareButton = buttonGrid.GetChild<ClickableSquare>(displayIndex);
             Piece piece = board.GetPieceAtSquare(i);
+            Sprite2D pieceSprite = squareButton.GetNode<Sprite2D>("Piece");
             if (piece != Piece.E)
             {
+                pieceSprite.Texture = pieceTextures[(int)piece];
+                pieceSprite.Visible = true;
+            }
+            else
+            {
+                pieceSprite.Visible = false;
+            }
+        }
+    }
+
+    private void UpdateLegalMovesView()
+    {
+        for (int i = 0; i < 64; i++)
+        {
+            int file = i % 8;
+            int rank = 7 - (i / 8); // Invert rank for display
+            int displayIndex = rank * 8 + file;
+            ClickableSquare squareButton = buttonGrid.GetChild<ClickableSquare>(displayIndex);
+            if (selectedSquare != -1 && board.IsLegalMove(selectedSquare, i))
+            {
                 squareButton.SetVisibility(true);
-                squareButton.GetNode<Sprite2D>("Piece").Texture = pieceTextures[(int)piece];
             }
             else
             {
@@ -63,19 +83,25 @@ public partial class BoardView : Node2D
         if (selectedSquare == -1)
         {
             selectedSquare = squareIndex;
+            UpdateLegalMovesView();
             GD.Print($"Selected square: {selectedSquare}");
         }
         else
         {
             GD.Print($"Moving from {selectedSquare} to {squareIndex}");
-            MoveInfo move = new(selectedSquare, squareIndex, promoteType);
+            Piece coloredPromotionType = board.SideToMove == Color.White ? promoteType : (Piece)((int)promoteType + 6);
+            MoveInfo move = new(selectedSquare, squareIndex, coloredPromotionType);
             board.TryMakeMove(move);
+            GD.Print(board.CurrentGameState);
+            gameStateDisplay.Text = board.CurrentGameState.ToString();
             UpdateBoardView();
+            UpdateLegalMovesView();
             selectedSquare = -1;
         }
     }
     private void OnPromoteTypeChanged(int index)
     {
+        // Always white
         promoteType = (Piece)index;
     }
 }

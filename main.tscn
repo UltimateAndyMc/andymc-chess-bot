@@ -17,9 +17,10 @@ shader_parameter/black = Color(0.17641911, 0.17641908, 0.17641908, 1)
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1301767173]
 
-[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid")]
+[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid", "gameStateDisplay")]
 script = ExtResource("1_272bh")
 buttonGrid = NodePath("ColorRect/ButtonGrid")
+gameStateDisplay = NodePath("../Panel/Buttons/Label")
 
 [node name="ColorRect" type="ColorRect" parent="Board" unique_id=1334896018]
 material = SubResource("ShaderMaterial_vuvef")
@@ -250,24 +251,19 @@ offset_top = -200.0
 offset_right = -264.0
 offset_bottom = 200.0
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Panel" unique_id=1538153144]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -76.5
-offset_top = -12.0
-offset_right = 76.5
-offset_bottom = 12.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="Buttons" type="VBoxContainer" parent="Panel" unique_id=515083624]
+layout_mode = 0
+offset_left = 47.5
+offset_top = 184.5
+offset_right = 199.5
+offset_bottom = 215.5
 
-[node name="Buttons" type="VBoxContainer" parent="Panel/HBoxContainer" unique_id=515083624]
+[node name="Label" type="Label" parent="Panel/Buttons" unique_id=2024241668]
 layout_mode = 2
+text = "Ongoing"
+horizontal_alignment = 1
 
-[node name="CheckButton" type="CheckButton" parent="Panel/HBoxContainer/Buttons" unique_id=1140948064]
+[node name="CheckButton" type="CheckButton" parent="Panel/Buttons" unique_id=1140948064]
 layout_mode = 2
 button_pressed = true
 text = "Playing Mode"
@@ -307,5 +303,5 @@ popup/item_2/id = 2
 popup/item_3/icon = ExtResource("7_kek77")
 popup/item_3/id = 3
 
-[connection signal="toggled" from="Panel/HBoxContainer/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
+[connection signal="toggled" from="Panel/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
 [connection signal="item_selected" from="Panel2/OptionButton" to="Board" method="OnPromoteTypeChanged"]

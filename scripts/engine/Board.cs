@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 
 public enum Piece {WK, WQ, WR, WB, WN, WP, BK, BQ, BR, BB, BN, BP, E}
 public enum Color { White, Black, None }
@@ -28,6 +27,7 @@ public enum CastleRights
     BlackQueenSide = 1 << 3,
     All = WhiteKingSide | WhiteQueenSide | BlackKingSide | BlackQueenSide
 }
+public enum GameResult { Ongoing, WhiteWins, BlackWins, Draw }
 
 public readonly struct MoveInfo(int from, int to, Piece promotion = Piece.E)
 {
@@ -52,12 +52,14 @@ public partial class Board
     private Piece[] boardPieces = new Piece[64];
     private CastleRights castleRights = CastleRights.All;
     private int enPassantSquare = -1;
-    private Color sideToMove = Color.White;
+    public Color SideToMove {get; private set;} = Color.White;
     private MoveInfo[] moves = new MoveInfo[MaxLegalMoves];
     private int legalMoveCount = 0;
 
     private int moveCount = 1;
     private int halfMoveClock = 0;
+
+    public GameResult CurrentGameState {get; private set;} = GameResult.Ongoing;
 
     public override string ToString()
     {
@@ -143,7 +145,6 @@ public partial class Board
             }
             Piece piece = PieceFromFenLetter(c);
             int squareIndex = rank * 8 + file;
-            Debug.WriteLine($"Placing piece {piece} at square {squareIndex}");
 
             boardPieces[squareIndex] = piece;
             pieceBBs[(int)piece] |= 1UL << squareIndex;
@@ -162,7 +163,7 @@ public partial class Board
 
         // Other FEN fields
         fenIndex++;
-        sideToMove = fen[fenIndex] == 'w' ? Color.White : Color.Black;
+        SideToMove = fen[fenIndex] == 'w' ? Color.White : Color.Black;
         fenIndex += 2;
         castleRights = CastleRights.None;
         while (fen[fenIndex] != ' ')
@@ -210,13 +211,171 @@ public partial class Board
         // Set up the initial position
         const string startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         LoadFEN(startFen);
+        GenerateMoves();
+        UpdateGameState();
     }
     public Piece GetPieceAtSquare(int square)
     {
         return boardPieces[square];
     }
+    public bool IsLegalMove(int from, int to)
+    {
+        for (int i = 0; i < legalMoveCount; i++)
+        {
+            if (moves[i].From == from && moves[i].To == to)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    private bool IsSquareAttacked(int square, Color by)
+    {
+        int offset = (int)by * 6;
+        int kingSquare = BitOperations.TrailingZeroCount(pieceBBs[(int)Piece.WK + offset]);
+        if (kingSquare < 64 && (AttackTables.KingAttacks[kingSquare] & (1UL << square)) != 0) return true;
+        ulong knightBB = pieceBBs[(int)Piece.WN + offset];
+        while (knightBB > 0)
+        {
+            int knightSquare = BitOperations.TrailingZeroCount(knightBB);
+            if ((AttackTables.KnightAttacks[knightSquare] & (1UL << square)) != 0) return true;
+            knightBB &= knightBB - 1; // Clear the least significant bit
+        }
+        ulong rookBB = pieceBBs[(int)Piece.WR + offset];
+        while (rookBB > 0)
+        {
+            int rookSquare = BitOperations.TrailingZeroCount(rookBB);
+            ulong rookAttacks = GenerateRookMoves(rookSquare);
+            if ((rookAttacks & (1UL << square)) != 0) return true;
+            rookBB &= rookBB - 1; // Clear the least significant bit
+        }
+        ulong bishopBB = pieceBBs[(int)Piece.WB + offset];
+        while (bishopBB > 0)
+        {
+            int bishopSquare = BitOperations.TrailingZeroCount(bishopBB);
+            ulong bishopAttacks = GenerateBishopMoves(bishopSquare);
+            if ((bishopAttacks & (1UL << square)) != 0) return true;
+            bishopBB &= bishopBB - 1; // Clear the least significant bit
+        }
+        ulong queenBB = pieceBBs[(int)Piece.WQ + offset];
+        while (queenBB > 0)
+        {
+            int queenSquare = BitOperations.TrailingZeroCount(queenBB);
+            ulong queenAttacks = GenerateRookMoves(queenSquare) | GenerateBishopMoves(queenSquare);
+            if ((queenAttacks & (1UL << square)) != 0) return true;
+            queenBB &= queenBB - 1; // Clear the least significant bit
+        }
+        ulong pawnBB = pieceBBs[(int)Piece.WP + offset];
+        while (pawnBB > 0)
+        {
+            int pawnSquare = BitOperations.TrailingZeroCount(pawnBB);
+            int pawnFile = pawnSquare % 8;
+            int direction = 1 - (2 * (int)by);
+            int leftSquare = pawnSquare + 8 * direction - 1;
+            int rightSquare = pawnSquare + 8 * direction + 1;
+            if (pawnFile > 0 && leftSquare == square) return true;
+            if (pawnFile < 7 && rightSquare == square) return true;
+            pawnBB &= pawnBB - 1; // Clear the least significant bit
+        }
+        return false;
+    }
+    private ulong GenerateRookMoves(int square)
+    {
+        int rank = square / 8;
+        int file = square % 8;
+
+        ulong attacks = 0;
+
+        for (int r = rank + 1; r < 8; r++)
+        {
+            int targetSquare = r * 8 + file;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        for (int r = rank - 1; r >= 0; r--)
+        {
+            int targetSquare = r * 8 + file;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        for (int f = file + 1; f < 8; f++)
+        {
+            int targetSquare = rank * 8 + f;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        for (int f = file - 1; f >= 0; f--)
+        {
+            int targetSquare = rank * 8 + f;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        return attacks;
+    }
+    private ulong GenerateBishopMoves(int square)
+    {
+        int rank = square / 8;
+        int file = square % 8;
+
+        ulong attacks = 0;
+
+        for (int r = rank + 1, f = file + 1; r < 8 && f < 8; r++, f++)
+        {
+            int targetSquare = r * 8 + f;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        for (int r = rank + 1, f = file - 1; r < 8 && f >= 0; r++, f--)
+        {
+            int targetSquare = r * 8 + f;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        for (int r = rank - 1, f = file + 1; r >= 0 && f < 8; r--, f++)
+        {
+            int targetSquare = r * 8 + f;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        for (int r = rank - 1, f = file - 1; r >= 0 && f >= 0; r--, f--)
+        {
+            int targetSquare = r * 8 + f;
+            attacks |= 1UL << targetSquare;
+            if ((occupancyBB & (1UL << targetSquare)) != 0) break;
+        }
+        return attacks;
+    }
+    private ulong GeneratePawnMoves(int square)
+    {
+        int rank = square / 8;
+        int file = square % 8;
+
+        ulong attacks = 0;
+
+        int direction = 1 - (2 * (int)SideToMove); 
 
 
+        if (boardPieces[square + 8 * direction] == Piece.E) 
+        {
+            attacks |= 1UL << square + 8 * direction; // Move forward
+            if (rank == (SideToMove == Color.White ? 1 : 6) && boardPieces[square + 16 * direction] == Piece.E)
+            {
+                attacks |= 1UL << square + 16 * direction; // Move forward two
+            }
+        }
+        int leftSquare = square + 8 * direction - 1;
+        int rightSquare = square + 8 * direction + 1;
+        
+        if (file > 0 && (boardPieces[leftSquare] != Piece.E || leftSquare == enPassantSquare)) 
+        {
+            attacks |= 1UL << leftSquare;
+        }
+        if (file < 7 && (boardPieces[rightSquare] != Piece.E || rightSquare == enPassantSquare)) 
+        {
+            attacks |= 1UL << rightSquare;
+        }
+        return attacks;
+    }
     // Generates pseudo-legal moves for a given piece on a given square
     public void GeneratePieceMoves(int square, Piece piece)
     {
@@ -224,21 +383,97 @@ public partial class Board
         {
             Piece.WK or Piece.BK => AttackTables.KingAttacks[square],
             Piece.WN or Piece.BN => AttackTables.KnightAttacks[square],
+            Piece.WR or Piece.BR => GenerateRookMoves(square),
+            Piece.WB or Piece.BB => GenerateBishopMoves(square),
+            Piece.WQ or Piece.BQ => GenerateRookMoves(square) | GenerateBishopMoves(square),
+            Piece.WP or Piece.BP => GeneratePawnMoves(square),
             _ => 0
         };
+        if (piece == Piece.WK)
+        {
+            if (castleRights.HasFlag(CastleRights.WhiteKingSide))
+            {
+                ulong blockingSquares = (1UL << (int)Square.f1) | (1UL << (int)Square.g1);
+                int transitSquare = (int)Square.f1;
+                if ((occupancyBB & blockingSquares) == 0 && !IsSquareAttacked(transitSquare, Color.Black) && !IsSquareAttacked((int)Square.e1, Color.Black))
+                {
+                    attacks |= 1UL << (int)Square.g1;
+                }
+            }
+            if (castleRights.HasFlag(CastleRights.WhiteQueenSide))
+            {
+                ulong blockingSquares = (1UL << (int)Square.b1) | (1UL << (int)Square.c1) | (1UL << (int)Square.d1);
+                int transitSquare = (int)Square.d1;
+                if ((occupancyBB & blockingSquares) == 0 && !IsSquareAttacked(transitSquare, Color.Black) && !IsSquareAttacked((int)Square.e1, Color.Black))
+                {
+                    attacks |= 1UL << (int)Square.c1;
+                }
+            }
+        }
+        else if (piece == Piece.BK)
+        {
+            if (castleRights.HasFlag(CastleRights.BlackKingSide))
+            {
+                ulong blockingSquares = (1UL << (int)Square.f8) | (1UL << (int)Square.g8);
+                int transitSquare = (int)Square.f8;
+                if ((occupancyBB & blockingSquares) == 0 && !IsSquareAttacked(transitSquare, Color.White) && !IsSquareAttacked((int)Square.e8, Color.White))
+                {
+                    attacks |= 1UL << (int)Square.g8;
+                }
+            }
+            if (castleRights.HasFlag(CastleRights.BlackQueenSide))
+            {
+                ulong blockingSquares = (1UL << (int)Square.b8) | (1UL << (int)Square.c8) | (1UL << (int)Square.d8);
+                int transitSquare = (int)Square.d8;
+                if ((occupancyBB & blockingSquares) == 0 && !IsSquareAttacked(transitSquare, Color.White) && !IsSquareAttacked((int)Square.e8, Color.White))
+                {
+                    attacks |= 1UL << (int)Square.c8;
+                }
+            }
+        }
+
         int targetSquares = BitOperations.PopCount(attacks);
         for (int i = 0; i < targetSquares; i++)
         {
             int targetSquare = BitOperations.TrailingZeroCount(attacks);
-            moves[legalMoveCount++] = new MoveInfo(square, targetSquare);
             attacks &= attacks - 1; // Clear the least significant bit
+
+            if ((colorBBs[(int)SideToMove] & (1UL << targetSquare)) != 0) // Skip if the target square has a piece of the same color
+            {
+                continue;
+            }
+
+            MoveInfo move = new(square, targetSquare);
+
+            int offset = (int)SideToMove * 6;
+            UndoInfo undo = MakeMove(move);
+            int kingSquare = BitOperations.TrailingZeroCount(pieceBBs[(int)Piece.WK + offset]);
+            bool isInCheck = IsSquareAttacked(kingSquare, SideToMove);
+            UndoMove(undo);
+
+            if (isInCheck)
+            {
+                continue; // Skip this move if it leaves the king in check
+            }
+
+            int rank = targetSquare / 8;
+            if ((piece == Piece.WP || piece == Piece.BP) && (rank == 0 || rank == 7))
+            {
+                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WQ : Piece.BQ);
+                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WR : Piece.BR);
+                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WB : Piece.BB);
+                moves[legalMoveCount++] = new MoveInfo(square, targetSquare, SideToMove == Color.White ? Piece.WN : Piece.BN);
+            }
+            else
+            {
+                moves[legalMoveCount++] = move;
+            }
         }
     }
-
     public void GenerateMoves()
     {
         legalMoveCount = 0;
-        int pieceOffset = (int)Piece.BK * (int)sideToMove;
+        int pieceOffset = (int)Piece.BK * (int)SideToMove;
         for (int i = 0; i < 6; i++)
         {
             ulong pieceBB = pieceBBs[pieceOffset + i];
@@ -252,31 +487,215 @@ public partial class Board
         } 
     }
 
-    private void MakeMove(MoveInfo move)
+    private void UpdateGameState()
     {
+        if (halfMoveClock >= 150)
+        {
+            CurrentGameState = GameResult.Draw;
+            legalMoveCount = 0;
+            return;
+        }
+        if (legalMoveCount != 0)
+        {
+            CurrentGameState = GameResult.Ongoing;
+            return;
+        }
+        Piece kingPiece = SideToMove == Color.White ? Piece.WK : Piece.BK;
+        int kingSquare = BitOperations.TrailingZeroCount(pieceBBs[(int)kingPiece]);
+        Color opponentColor = (Color)(1 - (int)SideToMove);
+        if (IsSquareAttacked(kingSquare, opponentColor))
+        {
+            CurrentGameState = opponentColor == Color.White ? GameResult.WhiteWins : GameResult.BlackWins;
+        }
+        else CurrentGameState = GameResult.Draw;
+    }
+    private void UndoMove(UndoInfo undo)
+    {
+        CurrentGameState = GameResult.Ongoing;
+        halfMoveClock--;
+        Color moverColor = (Color)(1 - (int)SideToMove);
+        MoveInfo move = undo.Move;
+        Piece fromPiece = boardPieces[move.To];
+        Piece toPiece = boardPieces[move.To];
+        bool promoted = move.Promotion != Piece.E;
+        if (promoted)
+        {
+            fromPiece = moverColor == Color.White ? Piece.WP : Piece.BP;
+        }
+        boardPieces[move.From] = fromPiece;
+        boardPieces[move.To] = Piece.E;
+        
+        ulong fromPosition = 1UL << move.From;
+        ulong toPosition = 1UL << move.To;
+
+        pieceBBs[(int)fromPiece] ^= fromPosition;
+        pieceBBs[(int)toPiece] ^= toPosition;
+        colorBBs[(int)moverColor] ^= fromPosition;
+        colorBBs[(int)moverColor] ^= toPosition;
+        occupancyBB ^= fromPosition;
+        occupancyBB ^= toPosition;
+
+        // Castling undo
+        if (fromPiece == Piece.WK || fromPiece == Piece.BK)
+        {
+            int fileChange = move.To - move.From;
+            Piece rookPiece = moverColor == Color.White ? Piece.WR : Piece.BR;
+            if (fileChange == 2)
+            {
+                int rookFrom = move.From + 3;
+                int rookTo = move.From + 1;
+                pieceBBs[(int)rookPiece] ^= (1UL << rookFrom) | (1UL << rookTo);
+                boardPieces[rookFrom] = rookPiece;
+                boardPieces[rookTo] = Piece.E;
+                colorBBs[(int)moverColor] ^= (1UL << rookFrom) | (1UL << rookTo);
+                occupancyBB ^= (1UL << rookFrom) | (1UL << rookTo);
+            }
+            if (fileChange == -2)
+            {
+                int rookFrom = move.From - 4;
+                int rookTo = move.From - 1;
+                pieceBBs[(int)rookPiece] ^= (1UL << rookFrom) | (1UL << rookTo);
+                boardPieces[rookFrom] = rookPiece;
+                boardPieces[rookTo] = Piece.E;
+                colorBBs[(int)moverColor] ^= (1UL << rookFrom) | (1UL << rookTo);
+                occupancyBB ^= (1UL << rookFrom) | (1UL << rookTo);
+            }
+        }
+
+        if (undo.CapturedPiece != Piece.E)
+        {
+            boardPieces[undo.CapturedSquare] = undo.CapturedPiece;
+            ulong capturedPosition = 1UL << undo.CapturedSquare;
+            pieceBBs[(int)undo.CapturedPiece] ^= capturedPosition;
+            colorBBs[(int)SideToMove] ^= capturedPosition;
+            occupancyBB ^= capturedPosition;
+        }
+
+        enPassantSquare = undo.PreviousEnPassantSquare;
+        castleRights = undo.PreviousCastleRights;
+        SideToMove = moverColor;
+    }
+    private UndoInfo MakeMove(MoveInfo move)
+    {
+        int fromFile = move.From % 8;
+        int fromRank = move.From / 8;
+        int toFile = move.To % 8;
+        int toRank = move.To / 8;
+        int fileChange = toFile - fromFile;
+        int rankChange = toRank - fromRank;
+
+        halfMoveClock++;
+
+        int previousEnPassantSquare = enPassantSquare;
+        CastleRights previousCastleRights = castleRights;
+
         Piece movedPiece = boardPieces[move.From];
-        Piece takenPiece = boardPieces[move.To];
+        // Ensure only pawns can be promoted and only when they reach the last rank
+        if ((movedPiece != Piece.WP && movedPiece != Piece.BP) || (toRank != 0 && toRank != 7))
+        {
+            move = new MoveInfo(move.From, move.To, Piece.E);
+        }
+        int capturedSquare = move.To;
+        Piece capturedPiece = boardPieces[capturedSquare];
+
+        // En Passant
+        if ((movedPiece == Piece.WP || movedPiece == Piece.BP) && move.To == enPassantSquare)
+        {
+            capturedSquare = move.From + fileChange;
+            capturedPiece = boardPieces[capturedSquare];
+            boardPieces[capturedSquare] = Piece.E; 
+        }
+        // Double pawn push
+        if ((movedPiece == Piece.WP || movedPiece == Piece.BP) && Math.Abs(rankChange) == 2)
+        {
+            int direction = 1 - (2 * (int)SideToMove);
+            enPassantSquare = move.From + 8 * direction;
+        }
+        else
+        {
+            enPassantSquare = -1;
+        }
+
+        // Castling
+        if (movedPiece == Piece.WK || movedPiece == Piece.BK)
+        {
+            Piece rookPiece = movedPiece == Piece.WK ? Piece.WR : Piece.BR;
+            if (fileChange == 2) // King-side castling
+            {
+                int rookFrom = move.From + 3;
+                int rookTo = move.From + 1;
+                boardPieces[rookTo] = boardPieces[rookFrom];
+                boardPieces[rookFrom] = Piece.E;
+                pieceBBs[(int)rookPiece] ^= (1UL << rookFrom) | (1UL << rookTo);
+                colorBBs[(int)SideToMove] ^= (1UL << rookFrom) | (1UL << rookTo);
+                occupancyBB ^= (1UL << rookFrom) | (1UL << rookTo);
+            }
+            else if (fileChange == -2) // Queen-side castling
+            {
+                int rookFrom = move.From - 4;
+                int rookTo = move.From - 1;
+                boardPieces[rookTo] = boardPieces[rookFrom];
+                boardPieces[rookFrom] = Piece.E;
+                pieceBBs[(int)rookPiece] ^= (1UL << rookFrom) | (1UL << rookTo);
+                colorBBs[(int)SideToMove] ^= (1UL << rookFrom) | (1UL << rookTo);
+                occupancyBB ^= (1UL << rookFrom) | (1UL << rookTo);
+            }
+
+            // Remove castling rights for the moving side
+            if (SideToMove == Color.White)
+            {
+                castleRights &= ~(CastleRights.WhiteKingSide | CastleRights.WhiteQueenSide);
+            }
+            else
+            {
+                castleRights &= ~(CastleRights.BlackKingSide | CastleRights.BlackQueenSide);
+            }
+        }
+
+        if (move.From == (int)Square.a1 || capturedSquare == (int)Square.a1) castleRights &= ~CastleRights.WhiteQueenSide;
+        if (move.From == (int)Square.h1 || capturedSquare == (int)Square.h1) castleRights &= ~CastleRights.WhiteKingSide;
+        if (move.From == (int)Square.a8 || capturedSquare == (int)Square.a8) castleRights &= ~CastleRights.BlackQueenSide;
+        if (move.From == (int)Square.h8 || capturedSquare == (int)Square.h8) castleRights &= ~CastleRights.BlackKingSide;
+        
         boardPieces[move.To] = boardPieces[move.From];
         boardPieces[move.From] = Piece.E;
         
-        pieceBBs[(int)movedPiece] ^= 1UL << move.From; // Flips the bit. It should be one so should set it to 0
-        if (takenPiece != Piece.E)
+        ulong fromPosition = 1UL << move.From;
+        ulong toPosition = 1UL << move.To;
+        ulong capturedPosition = 1UL << capturedSquare;
+        pieceBBs[(int)movedPiece] ^= fromPosition; // Flips the bit. It should be 1 so should set it to 0
+        pieceBBs[(int)movedPiece] ^= toPosition; // Flips the bit. It should be 0 so should set it to 1
+        colorBBs[(int)SideToMove] ^= fromPosition;
+        colorBBs[(int)SideToMove] ^= toPosition;
+        occupancyBB ^= fromPosition;
+        occupancyBB ^= toPosition;
+        if (capturedPiece != Piece.E)
         {
-            pieceBBs[(int)takenPiece] ^= 1UL << move.To;
+            pieceBBs[(int)capturedPiece] ^= capturedPosition;
+            colorBBs[1 - (int)SideToMove] ^= capturedPosition;
+            occupancyBB ^= capturedPosition;
         }
-        sideToMove = sideToMove == Color.White ? Color.White : Color.Black;
+
+        if ((toRank == 0 || toRank == 7) && (movedPiece == Piece.WP || movedPiece == Piece.BP) && move.Promotion != Piece.E)
+        {
+            boardPieces[move.To] = move.Promotion;
+            pieceBBs[(int)movedPiece] ^= toPosition; // Remove the pawn from the bitboard
+            pieceBBs[(int)move.Promotion] ^= toPosition; // Add the promoted piece to the bitboard
+        }
+
+        SideToMove = SideToMove == Color.White ? Color.Black : Color.White;
+
+        return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights);
     }
     public bool TryMakeMove(MoveInfo move)
     {
-        GenerateMoves();
-        for (int i = 0; i < legalMoveCount; i++)
+        if (!IsLegalMove(move.From, move.To))
         {
-            if (moves[i].To == move.To && moves[i].From == moves[i].From)
-            {
-                MakeMove(move);
-                return true;
-            }
+            return false;
         }
-        return false;
+        UndoInfo undo = MakeMove(move);
+        GenerateMoves();
+        UpdateGameState();
+        return true;
     }
 }
