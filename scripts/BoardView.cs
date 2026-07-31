@@ -70,19 +70,22 @@ public partial class BoardView : Node2D
 
     private void UpdateLegalMovesView()
     {
+        Span<MoveInfo> moves = stackalloc MoveInfo[Board.MaxLegalMoves];
+		int count = board.GenerateMoves(moves);
         for (int i = 0; i < 64; i++)
         {
-            int file = i % 8;
-            int rank = 7 - (i / 8); // Invert rank for display
-            int displayIndex = rank * 8 + file;
-            ClickableSquare squareButton = buttonGrid.GetChild<ClickableSquare>(displayIndex);
-            if (selectedSquare != -1 && board.IsLegalMove(selectedSquare, i))
+            ClickableSquare squareButton = buttonGrid.GetChild<ClickableSquare>(i);
+            squareButton.SetVisibility(false);
+        }
+        for (int i = 0; i < count; i++)
+        {
+            if (moves[i].From == selectedSquare)
             {
+                int file = moves[i].To % 8;
+                int rank = 7 - (moves[i].To / 8); // Invert rank for display
+                int displayIndex = rank * 8 + file;
+                ClickableSquare squareButton = buttonGrid.GetChild<ClickableSquare>(displayIndex);
                 squareButton.SetVisibility(true);
-            }
-            else
-            {
-                squareButton.SetVisibility(false);
             }
         }
     }
@@ -93,6 +96,10 @@ public partial class BoardView : Node2D
 
     private void PlayBotMove()
     {
+        if (board.CurrentGameState != GameResult.Ongoing)
+        {
+            return;
+        }
         if ((botMode == BotMode.White && board.SideToMove != Color.White) ||
             (botMode == BotMode.Black && board.SideToMove != Color.Black) || 
             botMode == BotMode.None
@@ -107,11 +114,22 @@ public partial class BoardView : Node2D
     }
     private void OnSquarePressed(int childIndex)
     {
+        if (board.CurrentGameState != GameResult.Ongoing)
+        {
+            return;
+        }
+
         int file = childIndex % 8;
         int rank = 7 - (childIndex / 8);
         int squareIndex = rank * 8 + file;
         if (selectedSquare == -1)
         {
+            Piece selectedPiece = board.GetPieceAtSquare(squareIndex);
+            Color selectedColor = selectedPiece < Piece.BK ? Color.White : Color.Black;
+            if (board.GetPieceAtSquare(squareIndex) == Piece.E || selectedColor != board.SideToMove)
+            {
+                return;
+            }
             selectedSquare = squareIndex;
             UpdateLegalMovesView();
             GD.Print($"Selected square: {selectedSquare}");
@@ -127,7 +145,7 @@ public partial class BoardView : Node2D
             UpdateBoardView();
             UpdateLegalMovesView();
             selectedSquare = -1;
-
+            
             PlayBotMove();
         }
     }

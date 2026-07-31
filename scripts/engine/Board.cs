@@ -47,7 +47,7 @@ public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int captured
 }
 public partial class Board
 {
-    private const int MaxLegalMoves = 218;
+    public const int MaxLegalMoves = 218;
     private ulong[] pieceBBs = new ulong[12]; 
     private ulong[] colorBBs = new ulong[2];
     private ulong occupancyBB = 0;
@@ -92,6 +92,48 @@ public partial class Board
         }
         return sb.ToString();
     }
+
+    private ulong[,] pieceKeys = new ulong[12, 64]; // Zobrist keys for each piece on each square
+    private ulong[] castleKeys = new ulong[16]; // Zobrist keys for each castle rights combination
+    private ulong[] enPassantKeys = new ulong[8]; // Zobrist keys for each file for en passant
+    private ulong sideToMoveKey; // Zobrist key for side to move
+
+    ulong state = 1804289383;
+    private ulong GetRandom64()
+    {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        return state;
+    }
+    private void InitZobrist()
+    {
+        for (int i = 0; i < 12; i++) {
+            for (int sq = 0; sq < 64; sq++) {
+                pieceKeys[i, sq] = GetRandom64();
+            }
+        }
+        for (int i = 0; i < 16; i++) castleKeys[i] = GetRandom64();
+        for (int i = 0; i < 8; i++) enPassantKeys[i] = GetRandom64();
+        sideToMoveKey = GetRandom64();
+        }
+    // private ulong ZobristHash()
+    // {
+    //     ulong finalKey = 0;
+
+    //     for (int i = 0; i < 64; i++)
+    //     {
+    //         Piece piece = boardPieces[i];
+    //         if (piece != Piece.E)
+    //         {
+    //             finalKey ^= pieceKeys[(int)piece, i];
+    //         }
+    //     }
+    //     if (SideToMove == Color.Black) 
+    //     {
+    //         finalKey ^= sideToMoveKey;
+    //     }
+    // }
     private Piece PieceFromFenLetter(char letter)
     {
         return letter switch
@@ -213,7 +255,7 @@ public partial class Board
         LoadFEN(startFen);
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
-        UpdateGameState(moves, count);
+        UpdateGameState(count);
     }
     public Piece GetPieceAtSquare(int square)
     {
@@ -475,6 +517,10 @@ public partial class Board
     }
     public int GenerateMoves(Span<MoveInfo> moves)
     {
+        if (CurrentGameState != GameResult.Ongoing)
+        {
+            return 0; // No moves can be generated if the game is over
+        }
         int count = 0;
         int pieceOffset = (int)Piece.BK * (int)SideToMove;
         for (int i = 0; i < 6; i++)
@@ -491,7 +537,7 @@ public partial class Board
         return count;
     }
 
-    private void UpdateGameState(Span<MoveInfo> moves, int count)
+    private void UpdateGameState(int count)
     {
         if (halfMoveClock >= 150)
         {
@@ -707,7 +753,7 @@ public partial class Board
 
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
-        UpdateGameState(moves, count);
+        UpdateGameState(count);
         return true;
     }
 
@@ -742,10 +788,15 @@ public partial class Board
     public void PlayBestMove(int depth)
     {
         MoveInfo bestMove = default;
-        float bestEval = float.MinValue;
+        float bestEval = float.NegativeInfinity;
 
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
+
+        if (count == 0)
+        {
+            return;
+        }
 
         for (int i = 0; i < count; i++)
         {
@@ -762,7 +813,9 @@ public partial class Board
 
         MakeMove(bestMove);
         count = GenerateMoves(moves);
-        UpdateGameState(moves, count);
+        Debug.WriteLine($"State before update: {CurrentGameState}");
+        UpdateGameState(count);
+        Debug.WriteLine($"State after update: {CurrentGameState}");
 
     }
     private float Search(int depth, float alpha, float beta)
@@ -776,10 +829,14 @@ public partial class Board
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
 
-        UpdateGameState(moves, count);
+        UpdateGameState(count);
         if (CurrentGameState == GameResult.WhiteWins || CurrentGameState == GameResult.BlackWins)
         {
             return float.MinValue;
+        }
+        else if (CurrentGameState == GameResult.Draw)
+        {
+            return 0f;
         }
 
         for (int i = 0; i < count; i++)
