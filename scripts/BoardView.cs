@@ -105,7 +105,9 @@ public partial class BoardView : Node2D
             botMode == BotMode.None
         ) return;
 
-        board.PlayBestMove(5);
+        const int maxDepth = 4;
+        const int depthCap = 6;
+        board.PlayBestMove(maxDepth, depthCap);
         gameStateDisplay.Text = board.CurrentGameState.ToString();
         UpdateBoardView();
         UpdateLegalMovesView();

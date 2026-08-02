@@ -48,6 +48,7 @@ public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int captured
 public partial class Board
 {
     public const int MaxLegalMoves = 218;
+    private const float BigNum = 1000000f;
     private ulong[] pieceBBs = new ulong[12]; 
     private ulong[] colorBBs = new ulong[2];
     private ulong occupancyBB = 0;
@@ -847,7 +848,10 @@ public partial class Board
 
         return eval;
     }
-    public void PlayBestMove(int depth)
+    // Depth is how far it has looked ahead,
+    // maxDepth determined what the depth can reach,
+    // depthCap is the maximum value that maxDepth can reach
+    public void PlayBestMove(int maxDepth, int depthCap)
     {
         MoveInfo bestMove = default;
         float bestEval = float.NegativeInfinity;
@@ -863,7 +867,7 @@ public partial class Board
         for (int i = 0; i < count; i++)
         {
             UndoInfo undo = MakeMove(moves[i]);
-            float eval = -Search(depth - 1, float.MinValue, float.MaxValue);
+            float eval = -Search(1, maxDepth, depthCap, -BigNum, BigNum);
             UndoMove(undo);
 
             if (eval > bestEval)
@@ -880,13 +884,13 @@ public partial class Board
         Debug.WriteLine($"State after update: {CurrentGameState}");
 
     }
-    private float Search(int depth, float alpha, float beta)
+    private float Search(int depth, int maxDepth, int depthCap, float alpha, float beta)
     {
-        if (depth == 0)
+        if (depth >= maxDepth || depth >= depthCap)
         {
-            return Evaluate();
+            return Evaluate() * (SideToMove == Color.White ? 1 : -1);
         }
-        float bestEval = float.MinValue;
+        float bestEval = -BigNum;
 
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
@@ -894,7 +898,7 @@ public partial class Board
         UpdateGameState(count);
         if (CurrentGameState == GameResult.WhiteWins || CurrentGameState == GameResult.BlackWins)
         {
-            return float.MinValue;
+            return depth - BigNum;
         }
         else if (CurrentGameState == GameResult.Draw)
         {
@@ -904,7 +908,10 @@ public partial class Board
         for (int i = 0; i < count; i++)
         {
             UndoInfo undo = MakeMove(moves[i]);
-            float eval = -Search(depth - 1, -beta, -alpha);
+            Piece opponentKingPiece = SideToMove == Color.White ? Piece.BK : Piece.WK;
+            int kingSquare = BitOperations.TrailingZeroCount(pieceBBs[(int)opponentKingPiece]);
+            int extension = undo.CapturedPiece != Piece.E || IsSquareAttacked(kingSquare, SideToMove) ? 1 : 0;
+            float eval = -Search(depth + 1, maxDepth + extension, depthCap, -beta, -alpha);
             UndoMove(undo);
 
             if (eval > bestEval)
