@@ -851,7 +851,7 @@ public partial class Board
     // Depth is how far it has looked ahead,
     // maxDepth determined what the depth can reach,
     // depthCap is the maximum value that maxDepth can reach
-    public void PlayBestMove(int maxDepth, int depthCap)
+    public float PlayBestMove(int maxDepth, int depthCap)
     {
         MoveInfo bestMove = default;
         float bestEval = float.NegativeInfinity;
@@ -859,9 +859,18 @@ public partial class Board
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
 
-        if (count == 0)
+        UpdateGameState(count);
+        if (CurrentGameState == GameResult.WhiteWins)
         {
-            return;
+            return BigNum;
+        }
+        if (CurrentGameState == GameResult.BlackWins)
+        {
+            return -BigNum;
+        }
+        if (CurrentGameState == GameResult.Draw)
+        {
+            return 0f;
         }
 
         for (int i = 0; i < count; i++)
@@ -879,9 +888,9 @@ public partial class Board
 
         MakeMove(bestMove);
         count = GenerateMoves(moves);
-        Debug.WriteLine($"State before update: {CurrentGameState}");
         UpdateGameState(count);
-        Debug.WriteLine($"State after update: {CurrentGameState}");
+        bestEval = bestEval * (SideToMove == Color.White ? -1 : 1);
+        return bestEval;
 
     }
     private float Search(int depth, int maxDepth, int depthCap, float alpha, float beta)

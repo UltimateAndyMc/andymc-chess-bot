@@ -7,6 +7,9 @@ public partial class BoardView : Node2D
 {
     [Export] private GridContainer buttonGrid;
     [Export] private Label gameStateDisplay;
+    [Export] private ProgressBar evaluationBar;
+    [Export] private Label whiteEvalLabel;
+    [Export] private Label blackEvalLabel;
     private Texture2D[] pieceTextures;
     private Board board = new Board();
     private int selectedSquare = -1;
@@ -107,12 +110,28 @@ public partial class BoardView : Node2D
 
         const int maxDepth = 4;
         const int depthCap = 6;
-        board.PlayBestMove(maxDepth, depthCap);
+        float evaluation = board.PlayBestMove(maxDepth, depthCap);
         gameStateDisplay.Text = board.CurrentGameState.ToString();
         UpdateBoardView();
         UpdateLegalMovesView();
-
-
+        evaluationBar.Value = evaluation;
+        if (evaluation == 0)
+        {
+            whiteEvalLabel.Visible = false;
+            blackEvalLabel.Visible = false;
+        }
+        else if (evaluation > 0)
+        {
+            whiteEvalLabel.Text = evaluation.ToString("F1");
+            whiteEvalLabel.Visible = true;
+            blackEvalLabel.Visible = false;
+        }
+        else
+        {
+            blackEvalLabel.Text = (-evaluation).ToString("F1");
+            blackEvalLabel.Visible = true;
+            whiteEvalLabel.Visible = false;
+        }
     }
     private void OnSquarePressed(int childIndex)
     {

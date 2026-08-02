@@ -1,5 +1,9 @@
 [gd_resource type="Theme" format=3 uid="uid://uapx6m2f7imt"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vuvef"]
+bg_color = Color(1, 1, 1, 1)
+
 [resource]
 OptionButton/constants/icon_max_width = 40
 PopupMenu/constants/icon_max_width = 40
+ProgressBar/styles/fill = SubResource("StyleBoxFlat_vuvef")

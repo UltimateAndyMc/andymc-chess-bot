@@ -13,14 +13,23 @@ shader = ExtResource("1_ig7tw")
 shader_parameter/white = Color(1, 1, 1, 1)
 shader_parameter/black = Color(0.17641911, 0.17641908, 0.17641908, 1)
 
+[sub_resource type="LabelSettings" id="LabelSettings_272bh"]
+font_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_vuvef"]
+
 [node name="Main" type="Node2D" unique_id=1936774836]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1301767173]
+zoom = Vector2(1.82, 1.82)
 
-[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid", "gameStateDisplay")]
+[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid", "gameStateDisplay", "evaluationBar", "whiteEvalLabel", "blackEvalLabel")]
 script = ExtResource("1_272bh")
 buttonGrid = NodePath("ColorRect/ButtonGrid")
 gameStateDisplay = NodePath("../Panel/Buttons/Label")
+evaluationBar = NodePath("../Panel3/ProgressBar")
+whiteEvalLabel = NodePath("../Panel3/ProgressBar/Label")
+blackEvalLabel = NodePath("../Panel3/ProgressBar/Label2")
 
 [node name="ColorRect" type="ColorRect" parent="Board" unique_id=1334896018]
 material = SubResource("ShaderMaterial_vuvef")
@@ -280,6 +289,51 @@ popup/item_3/id = 3
 layout_mode = 2
 button_pressed = true
 text = "Playing Mode"
+
+[node name="Panel3" type="Panel" parent="." unique_id=299847811]
+offset_left = 264.0
+offset_top = -200.0
+offset_right = 324.0
+offset_bottom = 200.0
+
+[node name="ProgressBar" type="ProgressBar" parent="Panel3" unique_id=42060875]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+min_value = -10.0
+max_value = 10.0
+allow_greater = true
+allow_lesser = true
+fill_mode = 3
+show_percentage = false
+
+[node name="Label" type="Label" parent="Panel3/ProgressBar" unique_id=930087606]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -23.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "0"
+label_settings = SubResource("LabelSettings_272bh")
+horizontal_alignment = 1
+
+[node name="Label2" type="Label" parent="Panel3/ProgressBar" unique_id=1341643321]
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 23.0
+grow_horizontal = 2
+text = "0"
+label_settings = SubResource("LabelSettings_vuvef")
+horizontal_alignment = 1
 
 [node name="Panel2" type="Panel" parent="." unique_id=859721372]
 anchors_preset = 8
