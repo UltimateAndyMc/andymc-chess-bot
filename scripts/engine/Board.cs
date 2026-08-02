@@ -35,7 +35,7 @@ public readonly struct MoveInfo(int from, int to, Piece promotion = Piece.E)
     public readonly int From = from, To = to;
     public readonly Piece Promotion = promotion;
 }
-public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int capturedSquare, int previousEnPassantSquare, CastleRights previousCastleRights, int previousHalfMoveClock)
+public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int capturedSquare, int previousEnPassantSquare, CastleRights previousCastleRights, int previousHalfMoveClock, ulong lastZobristKey)
 {
     public readonly MoveInfo Move = move;
     public readonly Piece CapturedPiece = capturedPiece;
@@ -43,7 +43,7 @@ public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int captured
     public readonly int PreviousEnPassantSquare = previousEnPassantSquare;
     public readonly CastleRights PreviousCastleRights = previousCastleRights;
     public readonly int PreviousHalfMoveClock = previousHalfMoveClock;
-    
+    public readonly ulong LastZobristKey = lastZobristKey;
 }
 public partial class Board
 {
@@ -56,10 +56,19 @@ public partial class Board
     private int enPassantSquare = -1;
     public Color SideToMove {get; private set;} = Color.White;
 
+    // Zobrist hashing: Only needs 75 due to 75 move rule for draws
+    private int zobristKeyIndex = 0;
+    private readonly ulong[] zobristKeys = new ulong[75];
+
     private int moveCount = 1;
     private int halfMoveClock = 0;
 
     public GameResult CurrentGameState {get; private set;} = GameResult.Ongoing;
+
+    public Board()
+    {
+        InitZobrist();
+    }
 
     public override string ToString()
     {
@@ -117,23 +126,31 @@ public partial class Board
         for (int i = 0; i < 8; i++) enPassantKeys[i] = GetRandom64();
         sideToMoveKey = GetRandom64();
         }
-    // private ulong ZobristHash()
-    // {
-    //     ulong finalKey = 0;
+    private ulong ZobristHash()
+    {
+        ulong finalKey = 0;
 
-    //     for (int i = 0; i < 64; i++)
-    //     {
-    //         Piece piece = boardPieces[i];
-    //         if (piece != Piece.E)
-    //         {
-    //             finalKey ^= pieceKeys[(int)piece, i];
-    //         }
-    //     }
-    //     if (SideToMove == Color.Black) 
-    //     {
-    //         finalKey ^= sideToMoveKey;
-    //     }
-    // }
+        for (int i = 0; i < 64; i++)
+        {
+            Piece piece = boardPieces[i];
+            if (piece != Piece.E)
+            {
+                finalKey ^= pieceKeys[(int)piece, i];
+            }
+        }
+        if (SideToMove == Color.Black) 
+        {
+            finalKey ^= sideToMoveKey;
+        }
+        int enPassantFile = enPassantSquare % 8;
+        if (enPassantSquare != -1)
+        {
+            finalKey ^= enPassantKeys[enPassantFile];
+        }
+        finalKey ^= castleKeys[(int)castleRights];
+
+        return finalKey;
+    }
     private Piece PieceFromFenLetter(char letter)
     {
         return letter switch
@@ -547,6 +564,24 @@ public partial class Board
         if (count != 0)
         {
             CurrentGameState = GameResult.Ongoing;
+
+            // Check for threefold repetition
+            int limit = Math.Min(halfMoveClock, 74); // Can't repeat past the last irreversible move
+            int repetitionCount = 1;
+            for (int i = 2; i <= limit; i+=2)
+            {
+                int index = (zobristKeyIndex - i + 75) % 75;
+                if (zobristKeys[index] == zobristKeys[zobristKeyIndex])
+                {
+                    repetitionCount++;
+                    if (repetitionCount >= 3)
+                    {
+                        CurrentGameState = GameResult.Draw;
+                        return;
+                    }
+                }
+
+            }
             return;
         }
         Piece kingPiece = SideToMove == Color.White ? Piece.WK : Piece.BK;
@@ -562,6 +597,8 @@ public partial class Board
     {
         CurrentGameState = GameResult.Ongoing;
         halfMoveClock = undo.PreviousHalfMoveClock;
+        zobristKeys[zobristKeyIndex] = undo.LastZobristKey;
+        zobristKeyIndex = (zobristKeyIndex - 1 + 75) % 75;
         Color moverColor = (Color)(1 - (int)SideToMove);
         MoveInfo move = undo.Move;
         Piece fromPiece = boardPieces[move.To];
@@ -636,6 +673,7 @@ public partial class Board
         int previousEnPassantSquare = enPassantSquare;
         CastleRights previousCastleRights = castleRights;
         int previousHalfMoveClock = halfMoveClock;
+        ulong lastZobristKey = zobristKeys[(zobristKeyIndex + 1) % 75];
 
         halfMoveClock++;
 
@@ -664,6 +702,12 @@ public partial class Board
         else
         {
             enPassantSquare = -1;
+        }
+
+        // Update half move clock
+        if (movedPiece == Piece.WP || movedPiece == Piece.BP || capturedPiece != Piece.E)
+        {
+            halfMoveClock = 0;
         }
 
         // Castling
@@ -740,8 +784,11 @@ public partial class Board
         }
 
         SideToMove = SideToMove == Color.White ? Color.Black : Color.White;
+        
+        zobristKeyIndex = (zobristKeyIndex + 1) % 75;
+        zobristKeys[zobristKeyIndex] = ZobristHash();
 
-        return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights, previousHalfMoveClock);
+        return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights, previousHalfMoveClock, lastZobristKey);
     }
     public bool TryMakeMove(MoveInfo move)
     {
