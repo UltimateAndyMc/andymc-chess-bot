@@ -830,6 +830,21 @@ public partial class Board
             int direction = i < 6 ? 1 : -1;
             eval += BitOperations.PopCount(pieceBBs[i]) * points[i % 6] * direction;
         }
+
+        for (int color = 0; color < 2; color++)
+        {
+            ulong pawns = pieceBBs[(int)Piece.WP + color * 6];
+            while (pawns > 0)
+            {
+                int square = BitOperations.TrailingZeroCount(pawns);
+                int rank = square / 8;
+                int rankStart = color == 0 ? 1 : 6;
+                int rankDifference = Math.Abs(rank - rankStart);
+                eval += (color == 0 ? 1 : -1) * rankDifference * 0.15f; // Encourage advancing pawns
+                pawns &= pawns - 1; // Clear the least significant bit
+            }
+        }
+
         return eval;
     }
     public void PlayBestMove(int depth)
