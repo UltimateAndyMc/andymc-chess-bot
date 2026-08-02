@@ -142,9 +142,9 @@ public partial class BoardView : Node2D
             board.TryMakeMove(move);
             GD.Print(board.CurrentGameState);
             gameStateDisplay.Text = board.CurrentGameState.ToString();
+            selectedSquare = -1;
             UpdateBoardView();
             UpdateLegalMovesView();
-            selectedSquare = -1;
             
             PlayBotMove();
         }
