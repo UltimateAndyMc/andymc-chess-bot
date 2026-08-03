@@ -822,7 +822,7 @@ public partial class Board
         return nodes;
     }
 
-    readonly float[] points = [0, 9, 5, 3, 3, 1];
+    readonly float[] points = [0f, 9f, 5f, 3.1f, 3f, 1f];
     private float Evaluate()
     {
         float eval = 0;
@@ -832,6 +832,8 @@ public partial class Board
             eval += BitOperations.PopCount(pieceBBs[i]) * points[i % 6] * direction;
         }
 
+
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         for (int color = 0; color < 2; color++)
         {
             ulong pawns = pieceBBs[(int)Piece.WP + color * 6];
@@ -841,10 +843,22 @@ public partial class Board
                 int rank = square / 8;
                 int rankStart = color == 0 ? 1 : 6;
                 int rankDifference = Math.Abs(rank - rankStart);
-                eval += (color == 0 ? 1 : -1) * rankDifference * 0.15f; // Encourage advancing pawns
+                eval += (color == 0 ? 1 : -1) * rankDifference * 0.12f; // Encourage advancing pawns
                 pawns &= pawns - 1; // Clear the least significant bit
             }
+            bool[] controlledSquares = new bool[64];
+
+            ulong knights = pieceBBs[(int)Piece.WN + color * 6];
+            while (knights > 0)
+            {
+                int square = BitOperations.TrailingZeroCount(knights);
+                ulong attacks = AttackTables.KnightAttacks[square];
+                int numAttacks = BitOperations.PopCount(attacks);
+                eval += (color == 0 ? 1 : -1) * numAttacks * 0.1f;
+                knights &= knights - 1; // Clear the least significant bit
+            }
         }
+        
 
         return eval;
     }
