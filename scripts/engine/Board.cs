@@ -152,6 +152,37 @@ public partial class Board
 
         return finalKey;
     }
+    private ulong UpdateZobrist(MoveInfo move, Piece capturedPiece, int previousEnPassantSquare, CastleRights previousCastleRights)
+    {
+        ulong newKey = zobristKeys[zobristKeyIndex];
+
+        Piece movedPiece = boardPieces[move.To];
+        newKey ^= pieceKeys[(int)movedPiece, move.From];
+        newKey ^= pieceKeys[(int)movedPiece, move.To];
+
+        if (capturedPiece != Piece.E)
+        {
+            newKey ^= pieceKeys[(int)capturedPiece, move.To];
+        }
+
+        if (previousEnPassantSquare != -1)
+        {
+            int previousFile = previousEnPassantSquare % 8;
+            newKey ^= enPassantKeys[previousFile];
+        }
+        if (enPassantSquare != -1)
+        {
+            int currentFile = enPassantSquare % 8;
+            newKey ^= enPassantKeys[currentFile];
+        }
+
+        newKey ^= castleKeys[(int)previousCastleRights];
+        newKey ^= castleKeys[(int)castleRights];
+
+        newKey ^= sideToMoveKey;
+
+        return newKey;
+    }
     private Piece PieceFromFenLetter(char letter)
     {
         return letter switch
@@ -265,6 +296,8 @@ public partial class Board
             moveCount = moveCount * 10 + (fen[fenIndex] - '0');
             fenIndex++;
         }
+        zobristKeyIndex = 0;
+        zobristKeys[zobristKeyIndex++] = ZobristHash();
     }
     public void SetStartPosition()
     {
@@ -787,7 +820,7 @@ public partial class Board
         SideToMove = SideToMove == Color.White ? Color.Black : Color.White;
         
         zobristKeyIndex = (zobristKeyIndex + 1) % 75;
-        zobristKeys[zobristKeyIndex] = ZobristHash();
+        zobristKeys[zobristKeyIndex] = UpdateZobrist(move, capturedPiece, previousEnPassantSquare, previousCastleRights);
 
         return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights, previousHalfMoveClock, lastZobristKey);
     }
@@ -846,7 +879,6 @@ public partial class Board
                 eval += (color == 0 ? 1 : -1) * rankDifference * 0.12f; // Encourage advancing pawns
                 pawns &= pawns - 1; // Clear the least significant bit
             }
-            bool[] controlledSquares = new bool[64];
 
             ulong knights = pieceBBs[(int)Piece.WN + color * 6];
             while (knights > 0)
