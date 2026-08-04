@@ -28,6 +28,7 @@ project/assembly_name="Chess"
 
 [gui]
 
+theme/default_font_multichannel_signed_distance_field=true
 theme/custom="uid://uapx6m2f7imt"
 
 [physics]

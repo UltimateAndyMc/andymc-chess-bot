@@ -23,13 +23,15 @@ font_color = Color(0, 0, 0, 1)
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1301767173]
 zoom = Vector2(1.82, 1.82)
 
-[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid", "gameStateDisplay", "evaluationBar", "whiteEvalLabel", "blackEvalLabel")]
+[node name="Board" type="Node2D" parent="." unique_id=844830614 node_paths=PackedStringArray("buttonGrid", "gameStateDisplay", "evaluationBar", "whiteEvalLabel", "blackEvalLabel", "tTStorageLabel", "tTUsedLabel")]
 script = ExtResource("1_272bh")
 buttonGrid = NodePath("ColorRect/ButtonGrid")
-gameStateDisplay = NodePath("../Panel/Buttons/Label")
+gameStateDisplay = NodePath("../Panel/MarginContainer/Buttons/Label")
 evaluationBar = NodePath("../Panel3/ProgressBar")
 whiteEvalLabel = NodePath("../Panel3/ProgressBar/Label")
 blackEvalLabel = NodePath("../Panel3/ProgressBar/Label2")
+tTStorageLabel = NodePath("../Panel/MarginContainer/Buttons/PanelContainer/MarginContainer/VBoxContainer/TTallocated")
+tTUsedLabel = NodePath("../Panel/MarginContainer/Buttons/PanelContainer/MarginContainer/VBoxContainer/TTused")
 
 [node name="ColorRect" type="ColorRect" parent="Board" unique_id=1334896018]
 material = SubResource("ShaderMaterial_vuvef")
@@ -254,25 +256,28 @@ layout_mode = 2
 [node name="ClickableSquare64" parent="Board/ColorRect/ButtonGrid" unique_id=24908175 instance=ExtResource("3_h2yge")]
 layout_mode = 2
 
-[node name="Panel" type="Panel" parent="." unique_id=1268625677]
+[node name="Panel" type="PanelContainer" parent="." unique_id=710505629]
 offset_left = -512.0
 offset_top = -200.0
 offset_right = -264.0
 offset_bottom = 200.0
 
-[node name="Buttons" type="VBoxContainer" parent="Panel" unique_id=515083624]
-layout_mode = 0
-offset_left = 47.5
-offset_top = 184.5
-offset_right = 199.5
-offset_bottom = 215.5
+[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=1997001614]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
 
-[node name="Label" type="Label" parent="Panel/Buttons" unique_id=2024241668]
+[node name="Buttons" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=515083624]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/MarginContainer/Buttons" unique_id=2024241668]
 layout_mode = 2
 text = "Ongoing"
 horizontal_alignment = 1
 
-[node name="OptionButton" type="OptionButton" parent="Panel/Buttons" unique_id=1589721038]
+[node name="OptionButton" type="OptionButton" parent="Panel/MarginContainer/Buttons" unique_id=1589721038]
 layout_mode = 2
 selected = 2
 item_count = 4
@@ -285,10 +290,38 @@ popup/item_2/id = 2
 popup/item_3/text = "Bot Plays Both"
 popup/item_3/id = 3
 
-[node name="CheckButton" type="CheckButton" parent="Panel/Buttons" unique_id=1140948064]
+[node name="CheckButton" type="CheckButton" parent="Panel/MarginContainer/Buttons" unique_id=1140948064]
 layout_mode = 2
 button_pressed = true
 text = "Playing Mode"
+
+[node name="Panel" type="Panel" parent="Panel/MarginContainer/Buttons" unique_id=923526117]
+layout_mode = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="Panel/MarginContainer/Buttons" unique_id=272753405]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel/MarginContainer/Buttons/PanelContainer" unique_id=1886124484]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer/Buttons/PanelContainer/MarginContainer" unique_id=1484030648]
+layout_mode = 2
+
+[node name="TT" type="Label" parent="Panel/MarginContainer/Buttons/PanelContainer/MarginContainer/VBoxContainer" unique_id=1270947471]
+layout_mode = 2
+text = "Transposition Table:"
+
+[node name="TTallocated" type="Label" parent="Panel/MarginContainer/Buttons/PanelContainer/MarginContainer/VBoxContainer" unique_id=714301030]
+layout_mode = 2
+text = "Storage allocated: "
+
+[node name="TTused" type="Label" parent="Panel/MarginContainer/Buttons/PanelContainer/MarginContainer/VBoxContainer" unique_id=1729165334]
+layout_mode = 2
+text = "Storage used: "
 
 [node name="Panel3" type="Panel" parent="." unique_id=299847811]
 offset_left = 264.0
@@ -370,6 +403,6 @@ popup/item_2/id = 2
 popup/item_3/icon = ExtResource("7_kek77")
 popup/item_3/id = 3
 
-[connection signal="item_selected" from="Panel/Buttons/OptionButton" to="Board" method="OnBotModeChanged"]
-[connection signal="toggled" from="Panel/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
+[connection signal="item_selected" from="Panel/MarginContainer/Buttons/OptionButton" to="Board" method="OnBotModeChanged"]
+[connection signal="toggled" from="Panel/MarginContainer/Buttons/CheckButton" to="Board" method="_on_playing_mode_toggled"]
 [connection signal="item_selected" from="Panel2/OptionButton" to="Board" method="OnPromoteTypeChanged"]

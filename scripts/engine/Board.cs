@@ -66,11 +66,18 @@ public partial class Board
 
     public GameResult CurrentGameState {get; private set;} = GameResult.Ongoing;
 
-    private TranspositionTable tTable = new(20); // 2^20 entries
+    private TranspositionTable tTable;
 
-    public Board()
+    public Board(int tTableSize)
     {
+        tTable = new TranspositionTable(tTableSize);
         InitZobrist();
+    }
+
+    // Returns storage used in bytes by the transposition table
+    public int GetTTStorageUsed()
+    {
+        return tTable.GetStorageUsed();
     }
 
     public override string ToString()

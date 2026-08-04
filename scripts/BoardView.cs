@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Godot;
 
 enum BotMode {None, White, Black, Both}
@@ -10,14 +11,18 @@ public partial class BoardView : Node2D
     [Export] private ProgressBar evaluationBar;
     [Export] private Label whiteEvalLabel;
     [Export] private Label blackEvalLabel;
+    [Export] private Label tTStorageLabel;
+    [Export] private Label tTUsedLabel;
     private Texture2D[] pieceTextures;
-    private Board board = new Board();
+    private const int maxTTBits = 24;
+    private Board board = new Board(maxTTBits);
     private int selectedSquare = -1;
     private Piece promoteType = Piece.WQ;
     private BotMode botMode = BotMode.Black;
 
     public override void _Ready()
     {
+        tTStorageLabel.Text = "Storage allocated: " + ((int)Math.Pow(2, maxTTBits) * Marshal.SizeOf<TTEntry>() / 1024 / 1024) + "MiB";
         for (int i = 0; i < buttonGrid.GetChildCount(); i++)
         {
             ClickableSquare squareButton = buttonGrid.GetChild<ClickableSquare>(i);
@@ -132,6 +137,8 @@ public partial class BoardView : Node2D
             blackEvalLabel.Visible = true;
             whiteEvalLabel.Visible = false;
         }
+
+        tTUsedLabel.Text = "Storage used: " + board.GetTTStorageUsed() / 1024 / 1024 + "MiB";
     }
     private void OnSquarePressed(int childIndex)
     {
