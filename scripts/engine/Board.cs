@@ -66,6 +66,8 @@ public partial class Board
 
     public GameResult CurrentGameState {get; private set;} = GameResult.Ongoing;
 
+    private TranspositionTable tTable = new(20); // 2^20 entries
+
     public Board()
     {
         InitZobrist();
@@ -152,9 +154,15 @@ public partial class Board
 
         return finalKey;
     }
-    private ulong UpdateZobrist(MoveInfo move, Piece capturedPiece, int previousEnPassantSquare, CastleRights previousCastleRights)
+    private ulong UpdateZobrist(UndoInfo undo)
     {
-        ulong newKey = zobristKeys[zobristKeyIndex];
+        MoveInfo move = undo.Move;
+        Piece capturedPiece = undo.CapturedPiece;
+        int previousEnPassantSquare = undo.PreviousEnPassantSquare;
+        CastleRights previousCastleRights = undo.PreviousCastleRights;
+        int capturedSquare = undo.CapturedSquare;
+
+        ulong newKey = zobristKeys[(zobristKeyIndex - 1 + 75) % 75];
 
         Piece movedPiece = boardPieces[move.To];
         newKey ^= pieceKeys[(int)movedPiece, move.From];
@@ -162,7 +170,7 @@ public partial class Board
 
         if (capturedPiece != Piece.E)
         {
-            newKey ^= pieceKeys[(int)capturedPiece, move.To];
+            newKey ^= pieceKeys[(int)capturedPiece, capturedSquare];
         }
 
         if (previousEnPassantSquare != -1)
@@ -820,9 +828,10 @@ public partial class Board
         SideToMove = SideToMove == Color.White ? Color.Black : Color.White;
         
         zobristKeyIndex = (zobristKeyIndex + 1) % 75;
-        zobristKeys[zobristKeyIndex] = UpdateZobrist(move, capturedPiece, previousEnPassantSquare, previousCastleRights);
+        UndoInfo undo = new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights, previousHalfMoveClock, lastZobristKey);
+        zobristKeys[zobristKeyIndex] = UpdateZobrist(undo);
 
-        return new(move, capturedPiece, capturedSquare, previousEnPassantSquare, previousCastleRights, previousHalfMoveClock, lastZobristKey);
+        return undo;
     }
     public bool TryMakeMove(MoveInfo move)
     {
@@ -891,7 +900,6 @@ public partial class Board
             }
         }
         
-
         return eval;
     }
     // Depth is how far it has looked ahead,
@@ -919,18 +927,36 @@ public partial class Board
             return 0f;
         }
 
-        for (int i = 0; i < count; i++)
-        {
-            UndoInfo undo = MakeMove(moves[i]);
-            float eval = -Search(1, maxDepth, depthCap, -BigNum, BigNum);
-            UndoMove(undo);
 
-            if (eval > bestEval)
+        bool usingCache = false;
+        if (tTable.IsStored(zobristKeys[zobristKeyIndex]))
+        {
+            TTEntry entry = tTable.Retrieve(zobristKeys[zobristKeyIndex]);
+            if (entry.Depth >= maxDepth && entry.Flag == TTFlag.Exact)
             {
-                bestEval = eval;
-                bestMove = moves[i];
+                bestEval = entry.Eval;
+                bestMove = entry.Move;
+                usingCache = true;
             }
         }
+        if (!usingCache)
+        {            
+            for (int i = 0; i < count; i++)
+            {
+
+                UndoInfo undo = MakeMove(moves[i]);
+                float eval = -Search(1, maxDepth, depthCap, -BigNum, BigNum);
+                UndoMove(undo);
+
+                if (eval > bestEval)
+                {
+                    bestEval = eval;
+                    bestMove = moves[i];
+                }
+            }
+            tTable.Store(zobristKeys[zobristKeyIndex], bestEval, bestMove, (byte)maxDepth, TTFlag.Exact);
+        }
+
 
         MakeMove(bestMove);
         count = GenerateMoves(moves);
@@ -945,7 +971,12 @@ public partial class Board
         {
             return Evaluate() * (SideToMove == Color.White ? 1 : -1);
         }
+        float originalAlpha = alpha;
+        byte remainingDepth = (byte)(Math.Min(maxDepth, depthCap) - depth);
+
+        MoveInfo bestMove = default;
         float bestEval = -BigNum;
+        TTFlag tTFlag = TTFlag.UpperBound;
 
         Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
         int count = GenerateMoves(moves);
@@ -953,13 +984,45 @@ public partial class Board
         UpdateGameState(count);
         if (CurrentGameState == GameResult.WhiteWins || CurrentGameState == GameResult.BlackWins)
         {
-            return depth - BigNum;
+            return (depth - 1) - BigNum;
         }
         else if (CurrentGameState == GameResult.Draw)
         {
             return 0f;
         }
 
+        if (tTable.IsStored(zobristKeys[zobristKeyIndex]))
+        {
+            TTEntry entry = tTable.Retrieve(zobristKeys[zobristKeyIndex]);
+            
+            if (entry.Depth >= remainingDepth)
+            {
+                if (entry.Flag == TTFlag.Exact)
+                {
+                    return entry.Eval;
+                }
+                else if (entry.Flag == TTFlag.LowerBound)
+                {
+                    if (entry.Eval >= beta)
+                    {
+                        return entry.Eval;
+                    }
+                    alpha = Math.Max(alpha, entry.Eval);
+                }
+                else if (entry.Flag == TTFlag.UpperBound)
+                {
+                    if (entry.Eval <= alpha)
+                    {
+                        return entry.Eval;
+                    }
+                    beta = Math.Min(beta, entry.Eval);
+                }
+                if (alpha >= beta)
+                {
+                    return entry.Eval;
+                }
+            }
+        }
         for (int i = 0; i < count; i++)
         {
             UndoInfo undo = MakeMove(moves[i]);
@@ -968,10 +1031,10 @@ public partial class Board
             int extension = undo.CapturedPiece != Piece.E || IsSquareAttacked(kingSquare, SideToMove) ? 1 : 0;
             float eval = -Search(depth + 1, maxDepth + extension, depthCap, -beta, -alpha);
             UndoMove(undo);
-
             if (eval > bestEval)
             {
                 bestEval = eval;
+                bestMove = moves[i];
             }
             if (eval > alpha)
             {
@@ -982,6 +1045,21 @@ public partial class Board
                 break;
             }
         }
+
+        if (bestEval <= originalAlpha)
+        {
+            tTFlag = TTFlag.UpperBound;
+        }
+        else if (bestEval >= beta)
+        {
+            tTFlag = TTFlag.LowerBound;
+        }
+        else
+        {
+            tTFlag = TTFlag.Exact;
+        }
+
+        tTable.Store(zobristKeys[zobristKeyIndex], bestEval, bestMove, remainingDepth, tTFlag);
         return bestEval;
     }
 }
