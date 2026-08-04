@@ -33,7 +33,10 @@ public partial class TranspositionTable
         {
             usedEntries++;
         }
-        table[index] = new TTEntry { Key = key, Eval = eval, Move = move, Depth = depth, Flag = flag };
+        if (depth > table[index].Depth || table[index].Key != key)
+        {
+            table[index] = new TTEntry { Key = key, Eval = eval, Move = move, Depth = depth, Flag = flag };
+        }
     }
     public bool IsStored(ulong key)
     {
