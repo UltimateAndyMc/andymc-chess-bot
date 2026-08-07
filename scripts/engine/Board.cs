@@ -909,6 +909,25 @@ public partial class Board
         
         return eval;
     }
+
+    // Cheap evaluation of a move, used for move ordering
+    private float EvaluateMove(MoveInfo move)
+    {
+        float eval = 0;
+        if (move.Promotion != Piece.E)
+        {
+            float promotionValue = points[(int)move.Promotion % 6] - 1f; // Promotion value minus the pawn's value
+            eval += promotionValue;
+        }
+
+        // Unfortunately won't work on en passant captures
+        // TODO: Add a special case for en passant captures
+        Piece capturedPiece = boardPieces[move.To];
+        float captureValue = capturedPiece == Piece.E ? 0f : points[(int)capturedPiece % 6];
+        eval += captureValue;
+
+        return eval;
+    }
     // Depth is how far it has looked ahead,
     // maxDepth determined what the depth can reach,
     // depthCap is the maximum value that maxDepth can reach
@@ -933,7 +952,14 @@ public partial class Board
         {
             return 0f;
         }
+        
+        Span<float> moveEvals = stackalloc float[MaxLegalMoves];
+        moveEvals.Fill(float.NegativeInfinity);
 
+        for (int i = 0; i < count; i++)
+        {
+            moveEvals[i] = EvaluateMove(moves[i]);
+        }
 
         bool usingCache = false;
         if (tTable.IsStored(zobristKeys[zobristKeyIndex]))
@@ -945,12 +971,26 @@ public partial class Board
                 bestMove = entry.Move;
                 usingCache = true;
             }
+            else
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    if (moves[i].Equals(entry.Move))
+                    {
+                        // Probably a good move if in the transposition table
+                        moveEvals[i] += BigNum;
+                        break;
+                    }
+                }
+            }
         }
+        // Sorted in ascending order, so the best moves are at the end of the array
+        moveEvals.Sort(moves);
+
         if (!usingCache)
         {            
-            for (int i = 0; i < count; i++)
+            for (int i = MaxLegalMoves - 1; i >= MaxLegalMoves - count; i--)
             {
-
                 UndoInfo undo = MakeMove(moves[i]);
                 float eval = -Search(1, maxDepth, depthCap, -BigNum, BigNum);
                 UndoMove(undo);
@@ -998,6 +1038,14 @@ public partial class Board
             return 0f;
         }
 
+        Span<float> moveEvals = stackalloc float[MaxLegalMoves];
+        moveEvals.Fill(float.NegativeInfinity);
+
+        for (int i = 0; i < count; i++)
+        {
+            moveEvals[i] = EvaluateMove(moves[i]);
+        }
+
         if (tTable.IsStored(zobristKeys[zobristKeyIndex]))
         {
             TTEntry entry = tTable.Retrieve(zobristKeys[zobristKeyIndex]);
@@ -1008,21 +1056,34 @@ public partial class Board
                 {
                     return entry.Eval;
                 }
-                else if (entry.Flag == TTFlag.LowerBound)
+                else 
                 {
-                    if (entry.Eval >= beta)
+                    for (int i = 0; i < count; i++)
                     {
-                        return entry.Eval;
+                        if (moves[i].Equals(entry.Move))
+                        {
+                            // Probably a good move if in the transposition table
+                            moveEvals[i] += BigNum;
+                            break;
+                        }
                     }
-                    alpha = Math.Max(alpha, entry.Eval);
-                }
-                else if (entry.Flag == TTFlag.UpperBound)
-                {
-                    if (entry.Eval <= alpha)
+
+                    if (entry.Flag == TTFlag.LowerBound)
                     {
-                        return entry.Eval;
+                        if (entry.Eval >= beta)
+                        {
+                            return entry.Eval;
+                        }
+                        alpha = Math.Max(alpha, entry.Eval);
                     }
-                    beta = Math.Min(beta, entry.Eval);
+                    else if (entry.Flag == TTFlag.UpperBound)
+                    {
+                        if (entry.Eval <= alpha)
+                        {
+                            return entry.Eval;
+                        }
+                        beta = Math.Min(beta, entry.Eval);
+                    }
                 }
                 if (alpha >= beta)
                 {
@@ -1030,7 +1091,10 @@ public partial class Board
                 }
             }
         }
-        for (int i = 0; i < count; i++)
+
+        moveEvals.Sort(moves);
+
+        for (int i = MaxLegalMoves - 1; i >= MaxLegalMoves - count; i--)
         {
             UndoInfo undo = MakeMove(moves[i]);
             Piece opponentKingPiece = SideToMove == Color.White ? Piece.BK : Piece.WK;
