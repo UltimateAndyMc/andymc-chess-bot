@@ -125,20 +125,36 @@ public partial class BoardView : Node2D
             whiteEvalLabel.Visible = false;
             blackEvalLabel.Visible = false;
         }
-        else if (evaluation > 0)
-        {
-            whiteEvalLabel.Text = evaluation.ToString("F1");
-            whiteEvalLabel.Visible = true;
-            blackEvalLabel.Visible = false;
-        }
         else
         {
-            blackEvalLabel.Text = (-evaluation).ToString("F1");
-            blackEvalLabel.Visible = true;
-            whiteEvalLabel.Visible = false;
-        }
+            if (evaluation > 0)
+            {
+                whiteEvalLabel.Text = evaluation.ToString("F1");
+                whiteEvalLabel.Visible = true;
+                blackEvalLabel.Visible = false;
+            }
+            else
+            {
+                blackEvalLabel.Text = (-evaluation).ToString("F1");
+                blackEvalLabel.Visible = true;
+                whiteEvalLabel.Visible = false;
+            }
+            if (evaluation > Board.MateThreshold)
+            {
+                int matePly = (int)(Board.BigNum - evaluation) - 1;
+                int mateMoves = (matePly + 1) / 2;
+                whiteEvalLabel.Text = "M" + mateMoves;
+            }
+            else if (evaluation < -Board.MateThreshold)
+            {
+                int matePly = (int)(Board.BigNum + evaluation) - 1;
+                GD.Print($"Mate ply: {matePly}");
+                int mateMoves = (matePly + 1) / 2;
+                blackEvalLabel.Text = "M" + mateMoves;
+            }
 
-        tTUsedLabel.Text = "Storage used: " + board.GetTTStorageUsed() / 1024 / 1024 + "MiB";
+            tTUsedLabel.Text = "Storage used: " + board.GetTTStorageUsed() / 1024 / 1024 + "MiB";
+        }
     }
     private void OnSquarePressed(int childIndex)
     {

@@ -48,7 +48,8 @@ public readonly struct UndoInfo(MoveInfo move, Piece capturedPiece, int captured
 public partial class Board
 {
     public const int MaxLegalMoves = 218;
-    private const float BigNum = 1000000f;
+    public const float BigNum = 1000000f;
+    public const float MateThreshold = BigNum / 2.0f;
     private ulong[] pieceBBs = new ulong[12]; 
     private ulong[] colorBBs = new ulong[2];
     private ulong occupancyBB = 0;
@@ -197,6 +198,19 @@ public partial class Board
         newKey ^= sideToMoveKey;
 
         return newKey;
+    }
+    private float ValueToTT(float value, int depth)
+    {
+        if (value >= MateThreshold) return value + depth;
+        if (value <= -MateThreshold) return value - depth;
+        return value;
+    }
+
+    private float ValueFromTT(float value, int depth)
+    {
+        if (value >= MateThreshold) return value - depth;
+        if (value <= -MateThreshold) return value + depth;
+        return value;
     }
     private Piece PieceFromFenLetter(char letter)
     {
@@ -1001,7 +1015,7 @@ public partial class Board
                     bestMove = moves[i];
                 }
             }
-            tTable.Store(zobristKeys[zobristKeyIndex], bestEval, bestMove, (byte)maxDepth, TTFlag.Exact);
+            tTable.Store(zobristKeys[zobristKeyIndex], ValueToTT(bestEval, 0), bestMove, (byte)maxDepth, TTFlag.Exact);
         }
 
 
@@ -1031,7 +1045,7 @@ public partial class Board
         UpdateGameState(count);
         if (CurrentGameState == GameResult.WhiteWins || CurrentGameState == GameResult.BlackWins)
         {
-            return (depth - 1) - BigNum;
+            return depth - BigNum;
         }
         else if (CurrentGameState == GameResult.Draw)
         {
@@ -1052,9 +1066,10 @@ public partial class Board
             
             if (entry.Depth >= remainingDepth)
             {
+                float ttValue = ValueFromTT(entry.Eval, depth);
                 if (entry.Flag == TTFlag.Exact)
                 {
-                    return entry.Eval;
+                    return ttValue;
                 }
                 else 
                 {
@@ -1070,24 +1085,24 @@ public partial class Board
 
                     if (entry.Flag == TTFlag.LowerBound)
                     {
-                        if (entry.Eval >= beta)
+                        if (ttValue >= beta)
                         {
-                            return entry.Eval;
+                            return ttValue;
                         }
-                        alpha = Math.Max(alpha, entry.Eval);
+                        alpha = Math.Max(alpha, ttValue);
                     }
                     else if (entry.Flag == TTFlag.UpperBound)
                     {
-                        if (entry.Eval <= alpha)
+                        if (ttValue <= alpha)
                         {
-                            return entry.Eval;
+                            return ttValue;
                         }
-                        beta = Math.Min(beta, entry.Eval);
+                        beta = Math.Min(beta, ttValue);
                     }
                 }
                 if (alpha >= beta)
                 {
-                    return entry.Eval;
+                    return ttValue;
                 }
             }
         }
@@ -1130,7 +1145,7 @@ public partial class Board
             tTFlag = TTFlag.Exact;
         }
 
-        tTable.Store(zobristKeys[zobristKeyIndex], bestEval, bestMove, remainingDepth, tTFlag);
+        tTable.Store(zobristKeys[zobristKeyIndex], ValueToTT(bestEval, depth), bestMove, remainingDepth, tTFlag);
         return bestEval;
     }
 }
