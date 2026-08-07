@@ -313,15 +313,15 @@ public partial class Board
         }
         zobristKeyIndex = 0;
         zobristKeys[zobristKeyIndex++] = ZobristHash();
+        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
+        int count = GenerateMoves(moves);
+        UpdateGameState(count);
     }
     public void SetStartPosition()
     {
         // Set up the initial position
         const string startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         LoadFEN(startFen);
-        Span<MoveInfo> moves = stackalloc MoveInfo[MaxLegalMoves];
-        int count = GenerateMoves(moves);
-        UpdateGameState(count);
     }
     public Piece GetPieceAtSquare(int square)
     {
